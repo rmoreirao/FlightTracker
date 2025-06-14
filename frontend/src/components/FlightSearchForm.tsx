@@ -3,8 +3,9 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FlightSearchFormValues, flightSearchSchema } from '@/lib/schemas';
-import { MagnifyingGlassIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { AirportAutocomplete } from './AirportAutocomplete';
 
 interface FlightSearchFormProps {
   onSearch: (searchData: FlightSearchFormValues) => void;
@@ -77,42 +78,20 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
         </button>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Origin and Destination */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-900 mb-2">
-              <MapPinIcon className="w-4 h-4 inline mr-1" />
-              From
-            </label>
-            <input
-              {...register('originCode')}
-              type="text"
-              placeholder="LAX"
-              className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
-              maxLength={3}
-            />
-            {errors.originCode && (
-              <p className="mt-1 text-sm text-error-500">{errors.originCode.message}</p>
-            )}
-          </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">        {/* Origin and Destination */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">          <AirportAutocomplete
+            label="From"
+            placeholder="Search for departure airport..."
+            onChange={(code) => setValue('originCode', code)}
+            error={errors.originCode?.message}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-900 mb-2">
-              <MapPinIcon className="w-4 h-4 inline mr-1" />
-              To
-            </label>
-            <input
-              {...register('destinationCode')}
-              type="text"
-              placeholder="JFK"
-              className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase"
-              maxLength={3}
-            />
-            {errors.destinationCode && (
-              <p className="mt-1 text-sm text-error-500">{errors.destinationCode.message}</p>
-            )}
-          </div>
+          <AirportAutocomplete
+            label="To"
+            placeholder="Search for destination airport..."
+            onChange={(code) => setValue('destinationCode', code)}
+            error={errors.destinationCode?.message}
+          />
         </div>
 
         {/* Departure and Return Dates */}
