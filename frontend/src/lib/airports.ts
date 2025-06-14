@@ -137,7 +137,7 @@ export const airports: Airport[] = [
   { code: 'WLG', name: 'Wellington Airport', city: 'Wellington', country: 'New Zealand' },
   
   // South American Airports
-  { code: 'GRU', name: 'São Paulo-Guarulhos International Airport', city: 'São Paulo', country: 'Brazil' },
+  { code: 'GRU', name: 'Sao Paulo-Guarulhos International Airport', city: 'Sao Paulo', country: 'Brazil' },
   { code: 'GIG', name: 'Rio de Janeiro-Galeão International Airport', city: 'Rio de Janeiro', country: 'Brazil' },
   { code: 'BSB', name: 'Brasília International Airport', city: 'Brasília', country: 'Brazil' },
   { code: 'EZE', name: 'Ezeiza International Airport', city: 'Buenos Aires', country: 'Argentina' },
