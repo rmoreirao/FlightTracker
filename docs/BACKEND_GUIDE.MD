@@ -4,6 +4,18 @@
 
 This guide provides architectural guidance, best practices, and implementation details for the Flight Tracker backend, focusing on the "Flight Search (Live Prices)" feature. It follows the technical requirements outlined in the Technical Requirements document while ensuring maintainability, operability, reusability, and security.
 
+## Key Sections in the Guide
+
+- **Architecture Overview**: Clean architecture with domain-driven design principles and CQRS pattern
+- **Application Layers**: Domain, Application, Infrastructure, and API layers with clear separation of concerns
+- **Database Schema**: TimescaleDB design for flight data with efficient querying capabilities
+- **API Design**: REST and GraphQL endpoints with comprehensive documentation using Swagger and GraphQL schemas
+- **Implementation Best Practices**: C# coding standards, error handling, and performance optimization techniques
+- **Testing Strategy**: Unit, integration, and performance testing with xUnit, Moq, and Azure Load Testing
+- **Security Considerations**: Authentication with Microsoft Entra ID, authorization policies, and data protection
+- **Operational Excellence**: Logging, monitoring, and alerting with Application Insights and Azure Monitor
+- **Implementation Roadmap**: Phased approach for backend development from setup to deployment
+
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
