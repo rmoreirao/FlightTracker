@@ -8,31 +8,33 @@ This guide provides architectural guidance, best practices, and implementation d
 
 - **Architecture Overview**: Clean architecture with domain-driven design principles and CQRS pattern
 - **Application Layers**: Domain, Application, Infrastructure, and API layers with clear separation of concerns
+- **.NET Aspire Integration**: Cloud-ready application stack with service discovery and orchestration
 - **Database Schema**: TimescaleDB design for flight data with efficient querying capabilities
 - **API Design**: REST and GraphQL endpoints with comprehensive documentation using Swagger and GraphQL schemas
 - **Implementation Best Practices**: C# coding standards, error handling, and performance optimization techniques
 - **Testing Strategy**: Unit, integration, and performance testing with xUnit, Moq, and Azure Load Testing
 - **Security Considerations**: Authentication with Microsoft Entra ID, authorization policies, and data protection
-- **Operational Excellence**: Logging, monitoring, and alerting with Application Insights and Azure Monitor
+- **Operational Excellence**: Logging, monitoring, and alerting with .NET Aspire, Application Insights and Azure Monitor
 - **Implementation Roadmap**: Phased approach for backend development from setup to deployment
 
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
 2. [Application Layers](#2-application-layers)
-3. [Database Schema](#3-database-schema)
-4. [API Design](#4-api-design)
-5. [Implementation Best Practices](#5-implementation-best-practices)
-6. [Testing Strategy](#6-testing-strategy)
-7. [Security Considerations](#7-security-considerations)
-8. [Operational Excellence](#8-operational-excellence)
-9. [Implementation Roadmap](#9-implementation-roadmap)
+3. [.NET Aspire Integration](#3-net-aspire-integration)
+4. [Database Schema](#4-database-schema)
+5. [API Design](#5-api-design)
+6. [Implementation Best Practices](#6-implementation-best-practices)
+7. [Testing Strategy](#7-testing-strategy)
+8. [Security Considerations](#8-security-considerations)
+9. [Operational Excellence](#9-operational-excellence)
+10. [Implementation Roadmap](#10-implementation-roadmap)
 
 ---
 
 ## 1. Architecture Overview
 
-The Flight Tracker backend follows a clean architecture approach with CQRS (Command Query Responsibility Segregation) pattern implementation via MediatR. This provides a clear separation of concerns, enables high performance, and makes the system maintainable and testable.
+The Flight Tracker backend follows a clean architecture approach with CQRS (Command Query Responsibility Segregation) pattern implementation via MediatR. This provides a clear separation of concerns, enables high performance, and makes the system maintainable and testable. Additionally, we leverage .NET Aspire for orchestrating distributed applications.
 
 ### High-Level Architecture
 
@@ -60,6 +62,7 @@ The Flight Tracker backend follows a clean architecture approach with CQRS (Comm
 
 ### Key Components
 
+- **.NET Aspire**: Cloud-ready stack for distributed applications
 - **ASP.NET Core API**: Minimal API endpoints and controllers where needed
 - **GraphQL API**: HotChocolate implementation for flexible queries
 - **CQRS with MediatR**: Separate command and query paths
@@ -378,7 +381,153 @@ public class RedisCacheService : ICacheService
 
 ---
 
-## 3. Database Schema
+## 3. .NET Aspire Integration
+
+.NET Aspire provides a cloud-ready stack for building resilient, observable distributed applications. We use Aspire to enhance our architecture with built-in service discovery, orchestration, and observability features.
+
+### 3.1 Project Structure
+
+The solution includes the following Aspire-specific projects:
+
+```
+FlightTracker.sln
+│
+├── FlightTracker.ServiceDefaults           # Common service configuration
+├── FlightTracker.AppHost                  # Application orchestrator
+├── FlightTracker.Api                      # Flight API service
+├── FlightTracker.DataIngestion            # Data ingestion service
+└── FlightTracker.PriceAnalytics           # Price analytics service
+```
+
+### 3.2 AppHost Configuration
+
+The AppHost project orchestrates all services and their dependencies:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add service defaults
+var defaultsBuilder = builder.AddDefaultServiceDefaults();
+
+// Add infrastructure resources
+var redis = builder.AddRedis("redis");
+var postgres = builder.AddPostgres("postgres")
+    .WithPostgresSchema("flighttracker", "flighttracker");
+
+// Add application services
+var api = builder.AddProject<Projects.FlightTracker_Api>("api")
+    .WithReference(redis)
+    .WithReference(postgres);
+
+var dataIngestion = builder.AddProject<Projects.FlightTracker_DataIngestion>("data-ingestion")
+    .WithReference(redis)
+    .WithReference(postgres);
+
+var priceAnalytics = builder.AddProject<Projects.FlightTracker_PriceAnalytics>("price-analytics")
+    .WithReference(redis)
+    .WithReference(postgres);
+
+builder.Build().Run();
+```
+
+### 3.3 Service Defaults
+
+Configure service defaults that are applied to all services:
+
+```csharp
+// Program.cs in ServiceDefaults project
+public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
+{
+    // Add service discovery
+    builder.AddServiceDiscovery();
+
+    // Add health checks
+    builder.AddDefaultHealthChecks();
+
+    // Add resilience (retries, circuit breakers, etc.)
+    builder.AddResiliencePipeline("HttpPipeline", builder => 
+        builder.AddRetry(new HttpRetryStrategyOptions())
+              .AddCircuitBreaker(new CircuitBreakerStrategyOptions()));
+
+    // Add telemetry
+    builder.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics.AddAspNetCoreInstrumentation()
+                   .AddHttpClientInstrumentation()
+                   .AddRuntimeInstrumentation();
+            
+            metrics.AddAzureMonitorMetricExporter();
+        })
+        .WithTracing(tracing =>
+        {
+            tracing.AddAspNetCoreInstrumentation()
+                  .AddHttpClientInstrumentation();
+                  
+            tracing.AddAzureMonitorTraceExporter();
+        });
+
+    // Add Serilog
+    builder.AddSerilog((context, loggerConfig) =>
+    {
+        loggerConfig
+            .ReadFrom.Configuration(context.Configuration)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Application", builder.Environment.ApplicationName)
+            .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName);
+    });
+
+    return builder;
+}
+```
+
+### 3.4 Service Registration
+
+Each service registers required dependencies with .NET Aspire components:
+
+```csharp
+// Program.cs in API project
+var builder = WebApplication.CreateBuilder(args);
+
+// Add service defaults
+builder.AddServiceDefaults();
+
+// Add Aspire Redis for caching
+builder.AddRedisClient("redis");
+
+// Add Aspire Postgres 
+builder.AddNpgsqlDbContext<FlightDbContext>("postgres");
+
+// Add application services
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+// ...other services
+
+var app = builder.Build();
+
+// ...app configuration
+
+app.Run();
+```
+
+### 3.5 Local Development Experience
+
+The Aspire dashboard provides real-time visibility into all services, including:
+
+- Service health and status
+- Logs from all services in a unified view
+- Distributed traces for cross-service requests
+- Resource monitoring for infrastructure components
+- Environment variable configuration
+
+To run the application locally with the Aspire dashboard:
+
+```bash
+dotnet run --project FlightTracker.AppHost
+```
+
+---
+
+## 4. Database Schema
 
 For the Flight Search feature, we need a schema that supports both the live search and historical data tracking.
 
@@ -520,7 +669,350 @@ public class FlightDbContext : DbContext
 
 ## 4. API Design
 
-### 4.1 REST API Endpoints
+### 4.1 API-First Development with OpenAPI Specification
+
+We follow an API-first approach using OpenAPI Specification (OAS) as the contract for all REST APIs. This ensures consistent API design, enables better developer experiences, and streamlines client code generation.
+
+#### OpenAPI Specification Process
+
+1. **Design the API contract**: Create an OpenAPI specification file before implementing the API
+2. **Review and iterate**: Collaborate on API design with stakeholders before implementation
+3. **Implement from spec**: Generate server code scaffolding from the OpenAPI spec
+4. **Validate implementation**: Ensure the implemented API conforms to the specification
+5. **Generate client SDKs**: Create client libraries for various platforms from the same spec
+
+```yaml
+# Example OpenAPI Specification for Flight Search API
+openapi: 3.0.3
+info:
+  title: Flight Tracker API
+  description: API for searching flights and retrieving price history
+  version: 1.0.0
+  contact:
+    name: Flight Tracker Team
+    email: team@flighttracker.example.com
+servers:
+  - url: https://api.flighttracker.example.com/v1
+    description: Production server
+  - url: https://api-staging.flighttracker.example.com/v1
+    description: Staging server
+paths:
+  /flights/search:
+    get:
+      summary: Search for flights
+      operationId: searchFlights
+      tags:
+        - Flights
+      parameters:
+        - name: originCode
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+          description: 3-letter IATA airport code for origin
+        - name: destinationCode
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+          description: 3-letter IATA airport code for destination
+        - name: departureDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Departure date in YYYY-MM-DD format
+        - name: returnDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Return date in YYYY-MM-DD format
+        - name: cabins
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [economy, premium_economy, business, first]
+          style: form
+          explode: false
+          description: Comma-separated list of cabin classes
+        - name: adults
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Number of adult passengers
+        - name: children
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of child passengers
+        - name: infants
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of infant passengers
+      responses:
+        '200':
+          description: Successful flight search
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightSearchResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    FlightSearchResponse:
+      type: object
+      properties:
+        flights:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flight'
+        lastUpdated:
+          type: string
+          format: date-time
+        totalResults:
+          type: integer
+        currency:
+          type: string
+      required:
+        - flights
+        - lastUpdated
+        - totalResults
+        - currency
+    Flight:
+      type: object
+      properties:
+        airlineCode:
+          type: string
+        airlineName:
+          type: string
+        flightNumber:
+          type: string
+        origin:
+          $ref: '#/components/schemas/Airport'
+        destination:
+          $ref: '#/components/schemas/Airport'
+        departureTime:
+          type: string
+          format: date-time
+        arrivalTime:
+          type: string
+          format: date-time
+        duration:
+          type: string
+          format: duration
+        stops:
+          type: integer
+        price:
+          $ref: '#/components/schemas/Money'
+        cabin:
+          type: string
+          enum: [economy, premium_economy, business, first]
+        deepLink:
+          type: string
+      required:
+        - airlineCode
+        - airlineName
+        - flightNumber
+        - origin
+        - destination
+        - departureTime
+        - arrivalTime
+        - duration
+        - stops
+        - price
+        - cabin
+    Airport:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 3
+        name:
+          type: string
+      required:
+        - code
+        - name
+    Money:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+      required:
+        - amount
+        - currency
+    ErrorResponse:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - title
+        - status
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            'api://flighttracker/flights.read': Read flight information
+security:
+  - oauth2: ['api://flighttracker/flights.read']
+```
+
+#### Tooling for OpenAPI
+
+- **Swagger Editor**: Design and edit OpenAPI specifications
+- **Swagger UI**: Visualize and interact with the API's resources
+- **NSwag**: Code generation for API clients and server implementations
+- **Swashbuckle**: ASP.NET Core integration for OpenAPI
+
+#### Code Generation from OpenAPI Spec
+
+Use NSwag or the .NET OpenAPI Generator to scaffold controllers and models from the OpenAPI specification:
+
+```bash
+# Generate controller stubs and models using the OpenAPI Generator
+dotnet tool install --global Microsoft.dotnet-openapi
+dotnet openapi add file ./specs/flight-api.yaml --controller-class FlightsController --namespace FlightTracker.Api.Controllers
+```
+
+In your ASP.NET Core project:
+
+```csharp
+// Program.cs
+// Register the OpenAPI document
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c => 
+{
+    c.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = "Flight Tracker API", 
+        Version = "v1" 
+    });
+    
+    // Load the OpenAPI specification file
+    c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "FlightTracker.Api.xml"));
+    
+    // Validate that implementation matches spec
+    c.EnableAnnotations();
+});
+
+// Use the OpenAPI UI
+app.UseSwagger();
+app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Flight Tracker API v1"));
+
+// Optional: Add validation middleware to ensure responses match OpenAPI spec
+app.UseMiddleware<OpenApiValidationMiddleware>();
+```
+
+#### API Implementation from OpenAPI Spec
+
+The scaffolded controller implementation aligns with the OpenAPI spec:
+
+```csharp
+[ApiController]
+[Route("api/v1/[controller]")]
+public class FlightsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    
+    public FlightsController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+    
+    /// <summary>
+    /// Search for flights
+    /// </summary>
+    [HttpGet("search")]
+    [Produces("application/json")]
+    [ProducesResponseType(typeof(FlightSearchResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> SearchFlights(
+        [FromQuery] string originCode,
+        [FromQuery] string destinationCode,
+        [FromQuery] DateTime departureDate,
+        [FromQuery] DateTime? returnDate,
+        [FromQuery] string? cabins,
+        [FromQuery] int adults = 1,
+        [FromQuery] int children = 0,
+        [FromQuery] int infants = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new SearchFlightsQuery(
+            originCode,
+            destinationCode,
+            departureDate,
+            returnDate,
+            cabins?.Split(',').Select(c => c.Trim()).ToArray(),
+            adults,
+            children,
+            infants);
+            
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+}
+```
+
+### 4.2 REST API Endpoints
 
 #### Flight Search Endpoint
 
@@ -572,7 +1064,7 @@ Response:
 }
 ```
 
-### 4.2 GraphQL Schema
+### 4.3 GraphQL Schema
 
 ```graphql
 type Query {
@@ -647,7 +1139,7 @@ type PageInfo {
 }
 ```
 
-### 4.3 API Documentation
+### 4.4 API Documentation
 
 Use Swagger/OpenAPI for REST API documentation and GraphQL Playground/Banana Cake Pop for GraphQL documentation.
 
@@ -791,6 +1283,33 @@ builder.Services.AddSwaggerGen(c =>
    - Use compression for responses
    - Return only required data (projection)
    - Monitor endpoint performance
+
+### 5.5 .NET Aspire Best Practices
+
+1. **Resource Management**:
+   - Use Aspire's built-in resource components for Redis, PostgreSQL, and other services
+   - Leverage connection string management provided by Aspire
+   - Use environment-based configuration for different deployment environments
+
+2. **Service Discovery**:
+   - Use service discovery for inter-service communication
+   - Avoid hardcoded service URLs in favor of service reference names
+   - Use service reference names in configuration rather than direct URLs
+
+3. **Resilience**:
+   - Leverage Aspire's resilience pipelines for HTTP clients
+   - Configure appropriate timeout, retry, and circuit breaker policies
+   - Use consistent resilience strategies across services
+
+4. **Observability**:
+   - Use Aspire's unified telemetry approach
+   - Ensure consistent correlation IDs across service boundaries
+   - Add appropriate logging and metrics at service boundaries
+
+5. **Service Orchestration**:
+   - Keep service definitions in AppHost clear and minimal
+   - Use service references to express dependencies between services
+   - Follow the principle of least privilege for service-to-resource access
 
 ---
 
@@ -1242,13 +1761,12 @@ builder.Services.AddDataProtection()
 
 ### 8.1 Logging
 
-Implement structured logging with Serilog:
+.NET Aspire provides integrated logging with Serilog. We leverage this integration and extend it with our specific needs:
 
 ```csharp
-// In Program.cs
-builder.Host.UseSerilog((context, services, configuration) => configuration
+// In ServiceDefaults
+builder.AddSerilog((context, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
-    .ReadFrom.Services(services)
     .Enrich.FromLogContext()
     .Enrich.WithMachineName()
     .Enrich.WithEnvironmentName()
@@ -1257,160 +1775,98 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
         workspaceId: context.Configuration["Logging:AzureAnalytics:WorkspaceId"],
         authenticationId: context.Configuration["Logging:AzureAnalytics:AuthenticationId"],
         logName: "FlightTrackerApi"));
-
-// In handlers and services
-public async Task<SearchFlightsResult> Handle(
-    SearchFlightsQuery request,
-    CancellationToken cancellationToken)
-{
-    using var scope = _logger.BeginScope(new Dictionary<string, object>
-    {
-        ["OriginCode"] = request.OriginCode,
-        ["DestinationCode"] = request.DestinationCode,
-        ["DepartureDate"] = request.DepartureDate,
-        ["ReturnDate"] = request.ReturnDate
-    });
-    
-    _logger.LogInformation("Processing flight search request");
-    
-    // Implementation...
-}
 ```
+
+The structured logging approach remains consistent with the Aspire integration, allowing for centralized log collection and analysis.
 
 ### 8.2 Monitoring and Observability
 
-Implement OpenTelemetry for distributed tracing and metrics:
+.NET Aspire provides built-in OpenTelemetry integration which we leverage for our monitoring needs:
 
 ```csharp
-// In Program.cs
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing =>
-    {
-        tracing.AddSource("FlightTracker.API")
-            .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                .AddService("FlightTracker.API"))
-            .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddEntityFrameworkCoreInstrumentation()
-            .AddAzureMonitorTraceExporter(options =>
-            {
-                options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
-            });
-    })
+// OpenTelemetry is configured in ServiceDefaults
+builder.AddOpenTelemetry()
     .WithMetrics(metrics =>
     {
         metrics.AddMeter("FlightTracker.API")
-            .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                .AddService("FlightTracker.API"))
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
-            .AddAzureMonitorMetricExporter(options =>
-            {
-                options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
-            });
+            .AddAzureMonitorMetricExporter();
+    })
+    .WithTracing(tracing =>
+    {
+        tracing.AddSource("FlightTracker.API")
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddAzureMonitorTraceExporter();
     });
 
-// Create an ActivitySource
+// Custom activity source for additional tracing
 private static readonly ActivitySource ActivitySource = new ActivitySource("FlightTracker.API");
-
-// Use activity for tracing
-public async Task<SearchFlightsResult> Handle(
-    SearchFlightsQuery request,
-    CancellationToken cancellationToken)
-{
-    using var activity = ActivitySource.StartActivity("SearchFlights");
-    activity?.SetTag("origin", request.OriginCode);
-    activity?.SetTag("destination", request.DestinationCode);
-    
-    // Implementation...
-}
 ```
+
+The Aspire dashboard provides a development-time view of all telemetry, making it easier to debug and monitor services locally.
 
 ### 8.3 Health Checks
 
-Implement health checks for dependencies:
+Aspire provides default health checks for all services and resources:
 
 ```csharp
-// In Program.cs
+// In ServiceDefaults
+builder.AddDefaultHealthChecks();
+
+// Add additional custom health checks as needed
 builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection"), 
-        name: "database", 
-        tags: new[] { "ready" })
-    .AddRedis(builder.Configuration.GetConnectionString("Redis"), 
-        name: "redis", 
-        tags: new[] { "ready" })
-    .AddUrlGroup(new Uri(builder.Configuration["FlightApis:Kiwi:HealthCheckUrl"]), 
-        name: "kiwi-api", 
-        tags: new[] { "live" });
-
-app.MapHealthChecks("/health/ready", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("ready"),
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
-
-app.MapHealthChecks("/health/live", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("live"),
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
-
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
+    .AddCheck<CustomDependencyHealthCheck>("custom-dependency", tags: new[] { "ready" });
 ```
+
+These health checks are automatically exposed on the `/health` endpoint and integrated with the Aspire dashboard.
 
 ### 8.4 Circuit Breakers
 
-Implement circuit breakers for external services:
+Aspire provides built-in resilience patterns that we leverage:
 
 ```csharp
-// In Program.cs
+// In ServiceDefaults
+builder.AddResiliencePipeline("HttpPipeline", builder => 
+    builder.AddRetry(new HttpRetryStrategyOptions
+    {
+        MaxRetryAttempts = 3,
+        UseJitter = true
+    })
+    .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+    {
+        FailureRatio = 0.5,
+        SamplingDuration = TimeSpan.FromSeconds(30),
+        MinimumThroughput = 10,
+        BreakDuration = TimeSpan.FromSeconds(60)
+    }));
+
+// Use the resilience pipeline with HTTP clients
 builder.Services.AddHttpClient<IFlightProvider, KiwiFlightProvider>()
-    .AddPolicyHandler(GetRetryPolicy())
-    .AddPolicyHandler(GetCircuitBreakerPolicy());
-
-static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
-{
-    return HttpPolicyExtensions
-        .HandleTransientHttpError()
-        .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-        .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
-}
-
-static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
-{
-    return HttpPolicyExtensions
-        .HandleTransientHttpError()
-        .CircuitBreakerAsync(5, TimeSpan.FromMinutes(1));
-}
+    .AddResilienceHandler("HttpPipeline");
 ```
 
 ### 8.5 Caching Strategy
 
-Implement a comprehensive caching strategy:
+.NET Aspire simplifies Redis cache configuration:
 
 ```csharp
-// In Program.cs
+// In AppHost
+var redis = builder.AddRedis("redis");
+
+// In service
+builder.AddRedisClient("redis");
+
+// Use Redis for distributed caching
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
-    options.InstanceName = "FlightTracker:";
+    // Aspire manages the connection string
 });
 
 // Response caching middleware
 app.UseResponseCaching();
-
-// Use output cache for specific endpoints
-app.MapGet("/api/v1/airports", async (IMediator mediator) =>
-{
-    var query = new GetAirportsQuery();
-    var result = await mediator.Send(query);
-    return Results.Ok(result);
-})
-.CacheOutput(policy => policy.Expire(TimeSpan.FromDays(1)));
 ```
 
 ---
@@ -1418,10 +1874,11 @@ app.MapGet("/api/v1/airports", async (IMediator mediator) =>
 ## 9. Implementation Roadmap
 
 ### Phase 1: Setup & Foundation (Week 1)
-- [ ] Set up project structure and solution
+- [ ] Set up project structure with .NET Aspire
+- [ ] Configure ServiceDefaults and AppHost
 - [ ] Configure EF Core with TimescaleDB
 - [ ] Implement authentication with Microsoft Entra ID
-- [ ] Configure logging and monitoring
+- [ ] Configure logging and monitoring with Aspire's telemetry
 
 ### Phase 2: Core Domain (Week 2)
 - [ ] Implement domain models
@@ -1433,7 +1890,7 @@ app.MapGet("/api/v1/airports", async (IMediator mediator) =>
 - [ ] Implement flight provider interfaces
 - [ ] Create flight search query handlers
 - [ ] Add REST endpoints for flight search
-- [ ] Implement caching for search results
+- [ ] Implement caching for search results using Aspire Redis
 
 ### Phase 4: GraphQL API (Week 5)
 - [ ] Implement GraphQL schema
@@ -1443,12 +1900,90 @@ app.MapGet("/api/v1/airports", async (IMediator mediator) =>
 
 ### Phase 5: Testing & Optimization (Week 6)
 - [ ] Write unit tests for all components
-- [ ] Implement integration tests
+- [ ] Implement integration tests with Aspire local development
 - [ ] Create performance tests
 - [ ] Optimize queries and caching strategy
 
 ### Phase 6: Deployment & CI/CD (Week 7)
 - [ ] Set up GitHub Actions pipeline
-- [ ] Create Azure infrastructure with Bicep
+- [ ] Create Azure infrastructure with Bicep or Aspire deployment
 - [ ] Configure blue-green deployment
-- [ ] Implement monitoring and alerts
+- [ ] Implement monitoring and alerts leveraging Aspire telemetry
+```csharp
+// In Program.cs
+// Register the OpenAPI document
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c => 
+{
+    c.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = "Flight Tracker API", 
+        Version = "v1" 
+    });
+    
+    // Load the OpenAPI specification file
+    c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "FlightTracker.Api.xml"));
+    
+    // Validate that implementation matches spec
+    c.EnableAnnotations();
+});
+
+// Use the OpenAPI UI
+app.UseSwagger();
+app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Flight Tracker API v1"));
+
+// Optional: Add validation middleware to ensure responses match OpenAPI spec
+app.UseMiddleware<OpenApiValidationMiddleware>();
+```
+
+#### API Implementation from OpenAPI Spec
+
+The scaffolded controller implementation aligns with the OpenAPI spec:
+
+```csharp
+[ApiController]
+[Route("api/v1/[controller]")]
+public class FlightsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    
+    public FlightsController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+    
+    /// <summary>
+    /// Search for flights
+    /// </summary>
+    [HttpGet("search")]
+    [Produces("application/json")]
+    [ProducesResponseType(typeof(FlightSearchResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> SearchFlights(
+        [FromQuery] string originCode,
+        [FromQuery] string destinationCode,
+        [FromQuery] DateTime departureDate,
+        [FromQuery] DateTime? returnDate,
+        [FromQuery] string? cabins,
+        [FromQuery] int adults = 1,
+        [FromQuery] int children = 0,
+        [FromQuery] int infants = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new SearchFlightsQuery(
+            originCode,
+            destinationCode,
+            departureDate,
+            returnDate,
+            cabins?.Split(',').Select(c => c.Trim()).ToArray(),
+            adults,
+            children,
+            infants);
+            
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+}
+```
