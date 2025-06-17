@@ -22,13 +22,13 @@
                                  │ GraphQL/REST
                                  ▼
                      ┌─────────────────────────────┐
-                     │ ASP.NET Core API (.NET 8,   │
+                     │ ASP.NET Core API (.NET 9,   │
                      │ C# 9) – Azure App Service   │
                      └──────────┬──────────────────┘
                                 │ CQRS / MediatR
    ┌─────────────────┐  Azure   │
    │ Ingestion Jobs  │ Functions│
-   │   (.NET 8)      │ <Timer>  │
+   │   (.NET 9)      │ <Timer>  │
    └────────┬────────┘          ▼
             │            ┌──────────────────────────┐
             │            │ Azure Database for       │
