@@ -4,99 +4,22 @@ import { useState } from 'react';
 import { FlightSearchForm } from '@/components/FlightSearchForm';
 import { FlightResults } from '@/components/FlightResults';
 import { Navbar } from '@/components/Navbar';
-import { FlightSearchFormValues, FlightOption, FlightSearchResults } from '@/lib/schemas';
-
-// Mock data for demonstration (replace with actual API calls)
-const mockFlightResults: FlightOption[] = [
-  {
-    id: '1',
-    airlineCode: 'AA',
-    airlineName: 'American Airlines',
-    totalPriceCents: 45999,
-    currency: 'USD',
-    stops: 0,
-    durationMinutes: 360,
-    departureTime: '2025-06-15T08:00:00Z',
-    arrivalTime: '2025-06-15T14:00:00Z',
-    bookingUrl: 'https://example.com/book/1',
-    cabinClass: 'economy'
-  },
-  {
-    id: '2',
-    airlineCode: 'DL',
-    airlineName: 'Delta Air Lines',
-    totalPriceCents: 52999,
-    currency: 'USD',
-    stops: 1,
-    durationMinutes: 420,
-    departureTime: '2025-06-15T06:30:00Z',
-    arrivalTime: '2025-06-15T13:30:00Z',
-    bookingUrl: 'https://example.com/book/2',
-    cabinClass: 'economy'
-  },
-  {
-    id: '3',
-    airlineCode: 'UA',
-    airlineName: 'United Airlines',
-    totalPriceCents: 41999,
-    currency: 'USD',
-    stops: 0,
-    durationMinutes: 345,
-    departureTime: '2025-06-15T14:00:00Z',
-    arrivalTime: '2025-06-15T19:45:00Z',
-    bookingUrl: 'https://example.com/book/3',
-    cabinClass: 'economy'
-  }
-];
+import { FlightSearchFormValues } from '@/lib/schemas';
+import { useFlightSearch } from '@/hooks/useFlightSearch';
 
 export default function Home() {
-  const [searchResults, setSearchResults] = useState<FlightSearchResults | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { searchResults, isLoading, error, searchFlights, clearError } = useFlightSearch();
   const [sortBy, setSortBy] = useState<'price' | 'duration' | 'stops'>('price');
 
   const handleSearch = async (searchData: FlightSearchFormValues) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock search results (replace with actual API call)
-    // In a real implementation, you would use searchData to make the API call
-    console.log('Search data:', searchData);
-    const results: FlightSearchResults = {
-      results: mockFlightResults,
-      lastUpdated: new Date().toISOString(),
-      searchId: 'mock-search-' + Date.now()
-    };
-    
-    setSearchResults(results);
-    setIsLoading(false);
+    clearError();
+    await searchFlights(searchData);
   };
-
   const handleSort = (newSortBy: 'price' | 'duration' | 'stops') => {
     setSortBy(newSortBy);
-    
-    if (searchResults) {
-      const sortedResults = [...searchResults.results].sort((a, b) => {
-        switch (newSortBy) {
-          case 'price':
-            return a.totalPriceCents - b.totalPriceCents;
-          case 'duration':
-            return a.durationMinutes - b.durationMinutes;
-          case 'stops':
-            return a.stops - b.stops;
-          default:
-            return 0;
-        }
-      });
-      
-      setSearchResults({
-        ...searchResults,
-        results: sortedResults
-      });
-    }
+    // Note: Sorting would need to be implemented in the hook or state management
+    // For now, just update the sort preference
   };
-
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-50">
       <Navbar />
@@ -107,6 +30,26 @@ export default function Home() {
             onSearch={handleSearch} 
             isLoading={isLoading}
           />
+          
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="text-red-800">
+                  <h3 className="text-sm font-medium">Search Error</h3>
+                  <p className="text-sm mt-1">{error}</p>
+                </div>
+                <button
+                  onClick={clearError}
+                  className="ml-auto text-red-500 hover:text-red-700"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
           
           {searchResults && (
             <FlightResults

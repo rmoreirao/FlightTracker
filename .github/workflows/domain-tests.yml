@@ -1,0 +1,201 @@
+name: Domain Tests & Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/src/FlightTracker.Domain/**'
+      - 'backend/tests/FlightTracker.Domain.Tests/**'
+      - 'backend/FlightTracker.sln'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/src/FlightTracker.Domain/**'
+      - 'backend/tests/FlightTracker.Domain.Tests/**'
+      - 'backend/FlightTracker.sln'
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  SOLUTION_PATH: 'backend/FlightTracker.sln'
+  TEST_PROJECT_PATH: 'backend/tests/FlightTracker.Domain.Tests'
+  COVERAGE_THRESHOLD: '80'
+
+jobs:
+  domain-tests:
+    name: Domain Tests & Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: ⚙️ Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 📦 Restore Dependencies
+      working-directory: backend
+      run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+    - name: 🔨 Build Solution
+      working-directory: backend
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+
+    - name: 🧪 Run Domain Tests with Coverage
+      working-directory: backend
+      run: |
+        dotnet test ${{ env.TEST_PROJECT_PATH }} \
+          --configuration Release \
+          --no-build \
+          --logger trx \
+          --logger "console;verbosity=detailed" \
+          --collect:"XPlat Code Coverage" \
+          --results-directory ./TestResults \
+          /p:CollectCoverage=true \
+          /p:CoverletOutputFormat=cobertura \
+          /p:CoverletOutput=./TestResults/ \
+          /p:Exclude="[*]*.Program,[*]*.Startup" \
+          /p:Include="[FlightTracker.Domain]*" \
+          /p:Threshold=${{ env.COVERAGE_THRESHOLD }} \
+          /p:ThresholdType=line \
+          /p:ThresholdStat=total
+
+    - name: 📊 Generate Coverage Report
+      working-directory: backend
+      run: |
+        dotnet tool install -g dotnet-reportgenerator-globaltool
+        reportgenerator \
+          -reports:"${{ env.TEST_PROJECT_PATH }}/TestResults/**/coverage.cobertura.xml" \
+          -targetdir:"${{ env.TEST_PROJECT_PATH }}/TestResults/CoverageReport" \
+          -reporttypes:"Html;JsonSummary;Badges" \
+          -title:"Flight Tracker Domain Coverage Report" \
+          -tag:"${{ github.sha }}"
+
+    - name: 📈 Parse Coverage Results
+      working-directory: backend
+      run: |
+        # Find the coverage file
+        COVERAGE_FILE=$(find ${{ env.TEST_PROJECT_PATH }}/TestResults -name "coverage.cobertura.xml" | head -1)
+        
+        if [ -f "$COVERAGE_FILE" ]; then
+          # Extract line coverage percentage
+          LINE_COVERAGE=$(grep -oP 'line-rate="\K[0-9.]+' "$COVERAGE_FILE" | head -1)
+          LINE_COVERAGE_PERCENT=$(echo "$LINE_COVERAGE * 100" | bc -l | xargs printf "%.2f")
+          
+          # Extract branch coverage percentage
+          BRANCH_COVERAGE=$(grep -oP 'branch-rate="\K[0-9.]+' "$COVERAGE_FILE" | head -1)
+          BRANCH_COVERAGE_PERCENT=$(echo "$BRANCH_COVERAGE * 100" | bc -l | xargs printf "%.2f")
+          
+          echo "LINE_COVERAGE=$LINE_COVERAGE_PERCENT" >> $GITHUB_ENV
+          echo "BRANCH_COVERAGE=$BRANCH_COVERAGE_PERCENT" >> $GITHUB_ENV
+          
+          echo "## 📊 Coverage Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Percentage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Line Coverage | $LINE_COVERAGE_PERCENT% | $([ $(echo "$LINE_COVERAGE_PERCENT >= ${{ env.COVERAGE_THRESHOLD }}" | bc -l) -eq 1 ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch Coverage | $BRANCH_COVERAGE_PERCENT% | $([ $(echo "$BRANCH_COVERAGE_PERCENT >= 70" | bc -l) -eq 1 ] && echo "✅ PASS" || echo "⚠️ LOW") |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Coverage Threshold:** ${{ env.COVERAGE_THRESHOLD }}%" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Coverage file not found" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: 🚫 Fail on Insufficient Coverage
+      working-directory: backend
+      run: |
+        if [ -n "$LINE_COVERAGE" ]; then
+          if (( $(echo "$LINE_COVERAGE < ${{ env.COVERAGE_THRESHOLD }}" | bc -l) )); then
+            echo "❌ Coverage ($LINE_COVERAGE%) is below threshold (${{ env.COVERAGE_THRESHOLD }}%)"
+            exit 1
+          else
+            echo "✅ Coverage gate passed ($LINE_COVERAGE% >= ${{ env.COVERAGE_THRESHOLD }}%)"
+          fi
+        else
+          echo "⚠️ Could not determine coverage percentage"
+          exit 1
+        fi
+
+    - name: 📤 Upload Coverage Reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: domain-coverage-report
+        path: |
+          ${{ env.TEST_PROJECT_PATH }}/TestResults/CoverageReport/
+          ${{ env.TEST_PROJECT_PATH }}/TestResults/**/*.cobertura.xml
+        retention-days: 30
+
+    - name: 📤 Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: domain-test-results
+        path: ${{ env.TEST_PROJECT_PATH }}/TestResults/**/*.trx
+        retention-days: 30
+
+    - name: 📊 Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Domain Test Results
+        path: '${{ env.TEST_PROJECT_PATH }}/TestResults/**/*.trx'
+        reporter: dotnet-trx
+        fail-on-error: true
+
+    - name: 💬 Comment Coverage on PR
+      if: github.event_name == 'pull_request' && always()
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: domain-coverage
+        message: |
+          ## 📊 Domain Coverage Report
+          
+          | Metric | Percentage | Status |
+          |--------|------------|--------|
+          | Line Coverage | ${{ env.LINE_COVERAGE }}% | ${{ env.LINE_COVERAGE >= env.COVERAGE_THRESHOLD && '✅ PASS' || '❌ FAIL' }} |
+          | Branch Coverage | ${{ env.BRANCH_COVERAGE }}% | ${{ env.BRANCH_COVERAGE >= 70 && '✅ PASS' || '⚠️ LOW' }} |
+          
+          **Coverage Threshold:** ${{ env.COVERAGE_THRESHOLD }}%
+          
+          [📋 View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+  mutation-testing:
+    name: Mutation Testing (Optional)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: domain-tests
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: ⚙️ Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 🧬 Install Stryker.NET
+      run: dotnet tool install -g dotnet-stryker
+
+    - name: 🧬 Run Mutation Tests
+      working-directory: ${{ env.TEST_PROJECT_PATH }}
+      run: |
+        dotnet stryker \
+          --project "../../src/FlightTracker.Domain/FlightTracker.Domain.csproj" \
+          --test-project "FlightTracker.Domain.Tests.csproj" \
+          --reporters "['html', 'json']" \
+          --threshold-high 85 \
+          --threshold-low 70 \
+          --threshold-break 60
+      continue-on-error: true
+
+    - name: 📤 Upload Mutation Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: mutation-test-report
+        path: ${{ env.TEST_PROJECT_PATH }}/StrykerOutput/
+        retention-days: 30

@@ -1,0 +1,150 @@
+/* Flight Tracker API Custom Swagger UI Styles */
+
+.swagger-ui .topbar {
+    background-color: #1f2937;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.swagger-ui .topbar .download-url-wrapper {
+    display: none;
+}
+
+.swagger-ui .info {
+    margin: 20px 0;
+}
+
+.swagger-ui .info .title {
+    color: #1f2937;
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.swagger-ui .info .description {
+    color: #4b5563;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+.swagger-ui .scheme-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.swagger-ui .btn.authorize {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.swagger-ui .btn.authorize:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+.swagger-ui .opblock.opblock-get {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary {
+    border-color: #10b981;
+}
+
+.swagger-ui .opblock.opblock-post {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.swagger-ui .opblock.opblock-post .opblock-summary {
+    border-color: #3b82f6;
+}
+
+.swagger-ui .opblock.opblock-put {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.swagger-ui .opblock.opblock-put .opblock-summary {
+    border-color: #f59e0b;
+}
+
+.swagger-ui .opblock.opblock-delete {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.swagger-ui .opblock.opblock-delete .opblock-summary {
+    border-color: #ef4444;
+}
+
+.swagger-ui .opblock-tag {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 30px 0 15px 0;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 10px;
+}
+
+.swagger-ui .parameter__name {
+    font-weight: 600;
+    color: #374151;
+}
+
+.swagger-ui .parameter__type {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.swagger-ui .response-col_status {
+    font-weight: 600;
+}
+
+.swagger-ui .response-col_description {
+    color: #4b5563;
+}
+
+.swagger-ui .model-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.swagger-ui .model-title {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.swagger-ui .prop-type {
+    color: #059669;
+    font-weight: 500;
+}
+
+.swagger-ui .prop-format {
+    color: #7c3aed;
+    font-style: italic;
+}
+
+/* Custom Flight Tracker branding */
+.swagger-ui .topbar::before {
+    content: "✈️ Flight Tracker API";
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-right: 20px;
+    display: inline-block;
+    padding: 10px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .swagger-ui .info .title {
+        font-size: 2rem;
+    }
+    
+    .swagger-ui .topbar::before {
+        font-size: 1rem;
+    }
+}

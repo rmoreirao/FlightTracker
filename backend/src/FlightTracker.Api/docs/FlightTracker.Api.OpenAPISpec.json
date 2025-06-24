@@ -1,0 +1,675 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Flight Tracker API",
+    "description": "A comprehensive API for flight search, tracking, and price analysis",
+    "termsOfService": "https://flighttracker.com/terms",
+    "contact": {
+      "name": "Flight Tracker Team",
+      "url": "https://flighttracker.com/contact",
+      "email": "support@flighttracker.com"
+    },
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "v1.0.0"
+  },
+  "paths": {
+    "/api/v1/Flights/search": {
+      "get": {
+        "tags": [
+          "Flights"
+        ],
+        "summary": "Search for flights between two airports",
+        "parameters": [
+          {
+            "name": "originCode",
+            "in": "query",
+            "description": "3-letter IATA airport code for origin (e.g., \"JFK\", \"LAX\")",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destinationCode",
+            "in": "query",
+            "description": "3-letter IATA airport code for destination (e.g., \"JFK\", \"LAX\")",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "departureDate",
+            "in": "query",
+            "description": "Departure date in YYYY-MM-DD format",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "returnDate",
+            "in": "query",
+            "description": "Return date in YYYY-MM-DD format (optional for round-trip flights)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "cabins",
+            "in": "query",
+            "description": "Comma-separated list of cabin classes (Economy, PremiumEconomy, Business, First)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "adults",
+            "in": "query",
+            "description": "Number of adult passengers (18+ years, minimum 1, maximum 9)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "children",
+            "in": "query",
+            "description": "Number of child passengers (2-17 years, maximum 8)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "infants",
+            "in": "query",
+            "description": "Number of infant passengers (0-2 years, maximum adults count)",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved flight search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchFlightsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid search parameters provided",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded - too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error occurred"
+          }
+        }
+      }
+    },
+    "/api/v1/Flights/{airlineCode}/{flightNumber}": {
+      "get": {
+        "tags": [
+          "Flights"
+        ],
+        "summary": "Get flight details by flight number",
+        "parameters": [
+          {
+            "name": "flightNumber",
+            "in": "path",
+            "description": "Flight number",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "airlineCode",
+            "in": "path",
+            "description": "2-letter airline code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "departureDate",
+            "in": "query",
+            "description": "Departure date",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flight"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/weatherforecast": {
+      "get": {
+        "tags": [
+          "FlightTracker.Api"
+        ],
+        "operationId": "GetWeatherForecast",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeatherForecast"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Check the health status of the API",
+        "responses": {
+          "200": {
+            "description": "API is healthy and operational",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/Health/info": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Get detailed system information",
+        "responses": {
+          "200": {
+            "description": "System information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Airport": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CabinClass": {
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "Flight": {
+        "type": "object",
+        "properties": {
+          "flightNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "airlineCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "airlineName": {
+            "type": "string",
+            "nullable": true
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Airport"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/Airport"
+          },
+          "departureTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "arrivalTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "string",
+            "format": "date-span",
+            "readOnly": true
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlightSegment"
+            },
+            "nullable": true,
+            "readOnly": true
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "cabinClass": {
+            "$ref": "#/components/schemas/CabinClass"
+          },
+          "deepLink": {
+            "type": "string",
+            "nullable": true
+          },
+          "stops": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/FlightStatus"
+          },
+          "isDirect": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "isInternational": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "FlightSegment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "flightNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "airlineCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Airport"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/Airport"
+          },
+          "departureTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "arrivalTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "string",
+            "format": "date-span",
+            "readOnly": true
+          },
+          "aircraftType": {
+            "type": "string",
+            "nullable": true
+          },
+          "segmentOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FlightStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FlightStatus": {
+        "enum": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "HealthStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Current health status",
+            "nullable": true,
+            "example": "Healthy"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp when health check was performed",
+            "format": "date-time",
+            "example": "2024-01-15T10:30:00Z"
+          },
+          "version": {
+            "type": "string",
+            "description": "API version",
+            "nullable": true,
+            "example": "1.0.0"
+          },
+          "environment": {
+            "type": "string",
+            "description": "Current environment",
+            "nullable": true,
+            "example": "Development"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Health status response model"
+      },
+      "Money": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "SearchFlightsResult": {
+        "type": "object",
+        "properties": {
+          "flights": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Flight"
+            },
+            "nullable": true
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalResults": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "searchDuration": {
+            "type": "string",
+            "format": "date-span"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Result of flight search query"
+      },
+      "SystemInfo": {
+        "type": "object",
+        "properties": {
+          "applicationName": {
+            "type": "string",
+            "description": "Application name",
+            "nullable": true,
+            "example": "Flight Tracker API"
+          },
+          "version": {
+            "type": "string",
+            "description": "Application version",
+            "nullable": true,
+            "example": "1.0.0"
+          },
+          "environment": {
+            "type": "string",
+            "description": "Current environment",
+            "nullable": true,
+            "example": "Development"
+          },
+          "machineName": {
+            "type": "string",
+            "description": "Machine name where the API is running",
+            "nullable": true,
+            "example": "API-SERVER-01"
+          },
+          "processorCount": {
+            "type": "integer",
+            "description": "Number of processors available",
+            "format": "int32",
+            "example": 8
+          },
+          "workingSet": {
+            "type": "integer",
+            "description": "Current memory usage in bytes",
+            "format": "int64",
+            "example": 134217728
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Timestamp when information was collected",
+            "format": "date-time",
+            "example": "2024-01-15T10:30:00Z"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Detailed system information response model"
+      },
+      "ValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "WeatherForecast": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "temperatureC": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "temperatureF": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "apiKey",
+        "description": "JWT Authorization header using the Bearer scheme",
+        "name": "Authorization",
+        "in": "header"
+      }
+    }
+  }
+}

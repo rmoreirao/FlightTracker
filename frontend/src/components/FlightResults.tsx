@@ -3,6 +3,7 @@
 import { FlightOption } from '@/lib/schemas';
 import { ClockIcon, ArrowRightIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
+import { formatPrice, formatDuration } from '@/lib/api';
 
 interface FlightResultsProps {
   results: FlightOption[];
@@ -12,19 +13,6 @@ interface FlightResultsProps {
 }
 
 export function FlightResults({ results, lastUpdated, onSort, currentSort }: FlightResultsProps) {
-  const formatPrice = (cents: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(cents / 100);
-  };
-
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  };
-
   const formatStops = (stops: number) => {
     if (stops === 0) return 'Nonstop';
     if (stops === 1) return '1 Stop';
@@ -33,6 +21,19 @@ export function FlightResults({ results, lastUpdated, onSort, currentSort }: Fli
 
   const formatTime = (timeString: string) => {
     return format(new Date(timeString), 'HH:mm');
+  };
+
+  const formatDate = (timeString: string) => {
+    return format(new Date(timeString), 'MMM d');
+  };
+
+  const calculateFlightDuration = (departure: string, arrival: string) => {
+    const depTime = new Date(departure);
+    const arrTime = new Date(arrival);
+    const diffMs = arrTime.getTime() - depTime.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
   };
 
   if (results.length === 0) {
@@ -105,21 +106,41 @@ export function FlightResults({ results, lastUpdated, onSort, currentSort }: Fli
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-2">
                   <div className="font-semibold text-neutral-900 dark:text-neutral-900">
-                    {flight.airlineName} ({flight.airlineCode})
+                    {flight.airlineName} {flight.flightNumber && `(${flight.flightNumber})`}
                   </div>
                   <div className="text-sm text-neutral-600 bg-neutral-200 px-2 py-1 rounded">
-                    {flight.cabinClass.replace('_', ' ')}
+                    {flight.cabinClass}
+                  </div>
+                  {flight.isDirect && (
+                    <div className="text-sm text-green-600 bg-green-100 px-2 py-1 rounded">
+                      Direct
+                    </div>
+                  )}
+                </div>
+                
+                {/* Route Information */}
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="text-sm">
+                    <div className="font-medium">{flight.origin.code}</div>
+                    <div className="text-neutral-600">{flight.origin.city}</div>
+                  </div>
+                  <ArrowRightIcon className="w-4 h-4 text-neutral-400" />
+                  <div className="text-sm">
+                    <div className="font-medium">{flight.destination.code}</div>
+                    <div className="text-neutral-600">{flight.destination.city}</div>
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-4 text-sm text-neutral-700 dark:text-neutral-700">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{formatTime(flight.departureTime)}</span>
+                    <span className="text-neutral-500">{formatDate(flight.departureTime)}</span>
                     <ArrowRightIcon className="w-4 h-4" />
                     <span className="font-medium">{formatTime(flight.arrivalTime)}</span>
+                    <span className="text-neutral-500">{formatDate(flight.arrivalTime)}</span>
                   </div>
                   <div className="text-neutral-500">•</div>
-                  <div>{formatDuration(flight.durationMinutes)}</div>
+                  <div>{flight.duration ? formatDuration(flight.duration) : calculateFlightDuration(flight.departureTime, flight.arrivalTime)}</div>
                   <div className="text-neutral-500">•</div>
                   <div>{formatStops(flight.stops)}</div>
                 </div>
@@ -129,20 +150,29 @@ export function FlightResults({ results, lastUpdated, onSort, currentSort }: Fli
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-900">
-                    {formatPrice(flight.totalPriceCents, flight.currency)}
+                    {formatPrice(flight.price.amount, flight.price.currency)}
                   </div>
                   <div className="text-sm text-neutral-600">Total price</div>
                 </div>
                 
-                <a
-                  href={flight.bookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-accent-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2"
-                >
-                  Book Now
-                  <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                </a>
+                {flight.deepLink ? (
+                  <a
+                    href={flight.deepLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-accent-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2"
+                  >
+                    Book Now
+                    <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                  </a>
+                ) : (
+                  <button
+                    disabled
+                    className="bg-neutral-300 text-neutral-500 font-medium py-2 px-4 rounded-md cursor-not-allowed"
+                  >
+                    Not Available
+                  </button>
+                )}
               </div>
             </div>
           </div>

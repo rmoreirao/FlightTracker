@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Flight, CabinClass } from './api-types';
 
 // Example: Schema for a contact form
 export const contactFormSchema = z.object({
@@ -12,7 +13,7 @@ export const contactFormSchema = z.object({
 
 export type ContactFormValues = z.infer<typeof contactFormSchema>;
 
-// Flight search form schema (FS-1)
+// Enhanced flight search form schema with API alignment
 export const flightSearchSchema = z.object({
   originCode: z.string()
     .min(3, { message: "Origin airport code must be at least 3 characters." })
@@ -34,9 +35,23 @@ export const flightSearchSchema = z.object({
     }, { message: "Departure date must be today or in the future." }),
   
   returnDate: z.string()
-    .min(1, { message: "Return date is required." })
     .optional()
-    .or(z.literal(""))
+    .or(z.literal("")),
+    // Passenger counts aligned with API
+  adults: z.number()
+    .min(1, { message: "At least 1 adult passenger is required." })
+    .max(9, { message: "Maximum 9 adult passengers allowed." }),
+  
+  children: z.number()
+    .min(0, { message: "Number of children cannot be negative." })
+    .max(8, { message: "Maximum 8 child passengers allowed." }),
+  
+  infants: z.number()
+    .min(0, { message: "Number of infants cannot be negative." }),
+  
+  // Cabin class selection
+  cabinClass: z.enum(['economy', 'premium_economy', 'business', 'first']),
+    
 }).refine((data) => {
   if (data.returnDate && data.returnDate !== "") {
     return new Date(data.returnDate) > new Date(data.departureDate);
@@ -45,27 +60,109 @@ export const flightSearchSchema = z.object({
 }, {
   message: "Return date must be after departure date.",
   path: ["returnDate"]
+}).refine((data) => {
+  // Infants cannot exceed number of adults
+  return data.infants <= data.adults;
+}, {
+  message: "Number of infants cannot exceed number of adults.",
+  path: ["infants"]
 });
 
 export type FlightSearchFormValues = z.infer<typeof flightSearchSchema>;
 
-// Flight result types
+// Updated flight result types to align with API
 export interface FlightOption {
   id: string;
   airlineCode: string;
   airlineName: string;
-  totalPriceCents: number;
-  currency: string;
-  stops: number;
-  durationMinutes: number;
+  flightNumber: string;
+  origin: {
+    code: string;
+    name: string;
+    city: string;
+  };
+  destination: {
+    code: string;
+    name: string;
+    city: string;
+  };
   departureTime: string;
   arrivalTime: string;
-  bookingUrl: string;
-  cabinClass: 'economy' | 'premium_economy' | 'business' | 'first';
+  duration: string;
+  price: {
+    amount: number;
+    currency: string;
+  };
+  stops: number;
+  cabinClass: string;
+  deepLink: string | null;
+  isDirect: boolean;
+  isInternational: boolean;
 }
 
 export interface FlightSearchResults {
   results: FlightOption[];
   lastUpdated: string;
-  searchId: string;
+  totalResults: number;
+  currency: string;
+  searchDuration: string;
 }
+
+// Utility function to convert API Flight to FlightOption
+export const convertApiFlightToFlightOption = (flight: Flight): FlightOption => {
+  return {
+    id: `${flight.airlineCode}-${flight.flightNumber}-${flight.departureTime}`,
+    airlineCode: flight.airlineCode || '',
+    airlineName: flight.airlineName || '',
+    flightNumber: flight.flightNumber || '',
+    origin: {
+      code: flight.origin.code || '',
+      name: flight.origin.name || '',
+      city: flight.origin.city || '',
+    },
+    destination: {
+      code: flight.destination.code || '',
+      name: flight.destination.name || '',
+      city: flight.destination.city || '',
+    },
+    departureTime: flight.departureTime,
+    arrivalTime: flight.arrivalTime,
+    duration: flight.duration,
+    price: {
+      amount: flight.price.amount,
+      currency: flight.price.currency || 'USD',
+    },
+    stops: flight.stops,
+    cabinClass: getCabinClassName(flight.cabinClass),
+    deepLink: flight.deepLink,
+    isDirect: flight.isDirect,
+    isInternational: flight.isInternational,
+  };
+};
+
+// Helper function to get cabin class name
+const getCabinClassName = (cabinClass: CabinClass): string => {
+  switch (cabinClass) {
+    case CabinClass.Economy:
+      return 'Economy';
+    case CabinClass.PremiumEconomy:
+      return 'Premium Economy';
+    case CabinClass.Business:
+      return 'Business';
+    case CabinClass.First:
+      return 'First';
+    default:
+      return 'Economy';
+  }
+};
+
+// Helper function to convert form cabin class to API format
+export const convertCabinClassToApi = (cabinClass: string): string => {
+  const mapping: Record<string, string> = {
+    'economy': 'Economy',
+    'premium_economy': 'PremiumEconomy',
+    'business': 'Business',
+    'first': 'First',
+  };
+  return mapping[cabinClass] || 'Economy';
+};

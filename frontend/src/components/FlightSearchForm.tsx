@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FlightSearchFormValues, flightSearchSchema } from '@/lib/schemas';
-import { MagnifyingGlassIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, CalendarIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { AirportAutocomplete } from './AirportAutocomplete';
 
@@ -24,6 +24,12 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
   } = useForm<FlightSearchFormValues>({
     resolver: zodResolver(flightSearchSchema),
     mode: 'onChange',
+    defaultValues: {
+      adults: 1,
+      children: 0,
+      infants: 0,
+      cabinClass: 'economy',
+    },
   });
 
   const onSubmit = (data: FlightSearchFormValues) => {
@@ -78,8 +84,10 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
         </button>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">        {/* Origin and Destination */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">          <AirportAutocomplete
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Origin and Destination */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AirportAutocomplete
             label="From"
             placeholder="Search for departure airport..."
             onChange={(code) => setValue('originCode', code)}
@@ -128,6 +136,76 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
             />
             {errors.returnDate && (
               <p className="mt-1 text-sm text-error-500">{errors.returnDate.message}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Passengers and Cabin Class */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Passenger Counts */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-900 mb-2">
+              <UserGroupIcon className="w-4 h-4 inline mr-1" />
+              Passengers
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="block text-xs text-neutral-600 mb-1">Adults</label>
+                <select
+                  {...register('adults', { valueAsNumber: true })}
+                  className="w-full px-2 py-2 border border-neutral-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-600 mb-1">Children</label>
+                <select
+                  {...register('children', { valueAsNumber: true })}
+                  className="w-full px-2 py-2 border border-neutral-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-600 mb-1">Infants</label>
+                <select
+                  {...register('infants', { valueAsNumber: true })}
+                  className="w-full px-2 py-2 border border-neutral-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {Array.from({ length: Math.min(watch('adults') || 1, 9) + 1 }, (_, i) => i).map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {(errors.adults || errors.children || errors.infants) && (
+              <p className="mt-1 text-sm text-error-500">
+                {errors.adults?.message || errors.children?.message || errors.infants?.message}
+              </p>
+            )}
+          </div>
+
+          {/* Cabin Class */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-900 dark:text-neutral-900 mb-2">
+              Cabin Class
+            </label>
+            <select
+              {...register('cabinClass')}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            >
+              <option value="economy">Economy</option>
+              <option value="premium_economy">Premium Economy</option>
+              <option value="business">Business</option>
+              <option value="first">First</option>
+            </select>
+            {errors.cabinClass && (
+              <p className="mt-1 text-sm text-error-500">{errors.cabinClass.message}</p>
             )}
           </div>
         </div>
