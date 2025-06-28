@@ -17,23 +17,83 @@ public class MockFlightRepository : IFlightRepository
         _ = InitializeFlights(); // Fire and forget initialization
     }
 
-    public Task<IReadOnlyList<Flight>> SearchAsync(
+    // ...existing code...
+    public async Task<IReadOnlyList<Flight>> SearchAsync(
         string originCode,
         string destinationCode,
         DateTime departureDate,
         DateTime? returnDate = null,
         CancellationToken cancellationToken = default)
     {
-        // var results = _flights.Where(f =>
-        //     f.Origin.Code == originCode &&
-        //     f.Destination.Code == destinationCode &&
-        //     f.DepartureTime.Date == departureDate.Date)
-        //     .ToList();
+        var origin = await _airportRepository.GetByCodeAsync(originCode);
+        var destination = await _airportRepository.GetByCodeAsync(destinationCode);
 
-        var results = _flights.ToList();
-        
-        return Task.FromResult<IReadOnlyList<Flight>>(results);
+        if (origin is null || destination is null)
+            return Array.Empty<Flight>();
+
+        var flights = new List<Flight>();
+
+        void GenerateFlights(string oCode, string dCode, DateTime date, Airport oAirport, Airport dAirport)
+        {
+            var random = new Random(Guid.NewGuid().GetHashCode());
+            var airlines = new[] { "AA", "DL", "UA", "WN", "B6" };
+            var airlineNames = new Dictionary<string, string>
+        {
+            { "AA", "American Airlines" },
+            { "DL", "Delta Air Lines" },
+            { "UA", "United Airlines" },
+            { "WN", "Southwest Airlines" },
+            { "B6", "JetBlue Airways" }
+        };
+
+            for (int i = 0; i < 10; i++)
+            {
+                var airlineCode = airlines[random.Next(airlines.Length)];
+                var flightNumber = $"{airlineCode}{random.Next(1000, 9999)}";
+
+                var departureTime = date.Date
+                    .AddHours(random.Next(6, 22))
+                    .AddMinutes(random.Next(0, 4) * 15);
+                var duration = TimeSpan.FromMinutes(random.Next(90, 360));
+                var arrivalTime = departureTime.Add(duration);
+
+                var price = new Money(random.Next(200, 1200), "USD");
+                var cabinClass = (CabinClass)random.Next(1, 5);
+
+                var segment = new FlightSegment(
+                    flightNumber,
+                    airlineCode,
+                    oAirport,
+                    dAirport,
+                    departureTime,
+                    arrivalTime,
+                    1,
+                    $"Boeing {random.Next(700, 800)}");
+
+                var flight = new Flight(
+                    flightNumber,
+                    airlineCode,
+                    airlineNames[airlineCode],
+                    oAirport,
+                    dAirport,
+                    departureTime,
+                    arrivalTime,
+                    price,
+                    cabinClass);
+
+                flight.AddSegment(segment);
+                flights.Add(flight);
+            }
+        }
+
+        GenerateFlights(originCode, destinationCode, departureDate, origin, destination);
+
+        if (returnDate.HasValue)
+            GenerateFlights(destinationCode, originCode, returnDate.Value, destination, origin);
+
+        return flights;
     }
+    //
 
     public Task<Flight?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -107,7 +167,7 @@ public class MockFlightRepository : IFlightRepository
             {
                 var originAirport = airportList[random.Next(airportList.Count)];
                 var destinationAirport = airportList[random.Next(airportList.Count)];
-                
+
                 // Ensure origin and destination are different
                 while (destinationAirport.Code == originAirport.Code)
                 {
@@ -116,12 +176,12 @@ public class MockFlightRepository : IFlightRepository
 
                 var airlineCode = airlines[random.Next(airlines.Length)];
                 var flightNumber = $"{airlineCode}{random.Next(1000, 9999)}";
-                
+
                 var baseDate = DateTime.Today.AddDays(random.Next(1, 90));
                 var departureTime = baseDate.AddHours(random.Next(6, 22)).AddMinutes(random.Next(0, 4) * 15);
                 var duration = TimeSpan.FromMinutes(random.Next(90, 360));
                 var arrivalTime = departureTime.Add(duration);
-                
+
                 var price = new Money(random.Next(200, 1200), "USD");
                 var cabinClass = (CabinClass)random.Next(1, 5);
 
