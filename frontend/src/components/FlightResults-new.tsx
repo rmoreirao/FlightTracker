@@ -3,7 +3,7 @@
 import { FlightOption } from '@/lib/schemas';
 import { ClockIcon, ArrowRightIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
-import { formatPrice, formatDateTime, formatDuration } from '@/lib/api';
+import { formatPrice, formatDuration } from '@/lib/api';
 
 interface FlightResultsProps {
   results: FlightOption[];
