@@ -1892,11 +1892,6 @@ app.UseResponseCaching();
 - [ ] Add REST endpoints for flight search
 - [ ] Implement caching for search results using Aspire Redis
 
-### Phase 4: GraphQL API (Week 5)
-- [ ] Implement GraphQL schema
-- [ ] Create resolvers for flight search
-- [ ] Add filtering and sorting capabilities
-- [ ] Implement data loaders for efficiency
 
 ### Phase 5: Testing & Optimization (Week 6)
 - [ ] Write unit tests for all components
@@ -1909,81 +1904,54 @@ app.UseResponseCaching();
 - [ ] Create Azure infrastructure with Bicep or Aspire deployment
 - [ ] Configure blue-green deployment
 - [ ] Implement monitoring and alerts leveraging Aspire telemetry
-```csharp
-// In Program.cs
-// Register the OpenAPI document
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c => 
-{
-    c.SwaggerDoc("v1", new OpenApiInfo 
-    { 
-        Title = "Flight Tracker API", 
-        Version = "v1" 
-    });
-    
-    // Load the OpenAPI specification file
-    c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "FlightTracker.Api.xml"));
-    
-    // Validate that implementation matches spec
-    c.EnableAnnotations();
-});
 
-// Use the OpenAPI UI
-app.UseSwagger();
-app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Flight Tracker API v1"));
+---
 
-// Optional: Add validation middleware to ensure responses match OpenAPI spec
-app.UseMiddleware<OpenApiValidationMiddleware>();
+## Local Database for Development and Testing
+
+To ensure a smooth developer experience and robust testing, the backend database setup must support running PostgreSQL/TimescaleDB locally for both debugging and automated tests. This includes:
+
+- **Local DB via Aspire or Docker Compose**: Use .NET Aspire's built-in Postgres resource or provide a `docker-compose.yml` for local PostgreSQL/TimescaleDB. Document how to start the DB locally.
+- **Configurable Connection Strings**: Use environment variables or user secrets to override DB connection strings for local development and CI/test environments.
+- **EF Core Migrations and Seeding**: Ensure migrations and seed data can be applied to the local DB. Provide scripts or CLI instructions for developers.
+- **Integration Testing Support**: Use [Testcontainers](https://github.com/testcontainers/testcontainers-dotnet) to spin up disposable PostgreSQL/TimescaleDB and Redis instances for integration tests, as shown in the guide's test examples.
+- **Health Checks**: Expose health endpoints that validate DB connectivity, useful for both local and CI environments.
+- **Documentation**: Add a section in the README or this guide with step-by-step instructions for running the DB locally, applying migrations, and troubleshooting common issues.
+
+**Example: Running the DB Locally with Aspire**
+
+```bash
+dotnet run --project backend/src/FlightTracker.AppHost
 ```
 
-#### API Implementation from OpenAPI Spec
+**Example: Running the DB Locally with Docker Compose**
 
-The scaffolded controller implementation aligns with the OpenAPI spec:
-
-```csharp
-[ApiController]
-[Route("api/v1/[controller]")]
-public class FlightsController : ControllerBase
-{
-    private readonly IMediator _mediator;
-    
-    public FlightsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-    
-    /// <summary>
-    /// Search for flights
-    /// </summary>
-    [HttpGet("search")]
-    [Produces("application/json")]
-    [ProducesResponseType(typeof(FlightSearchResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status429TooManyRequests)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> SearchFlights(
-        [FromQuery] string originCode,
-        [FromQuery] string destinationCode,
-        [FromQuery] DateTime departureDate,
-        [FromQuery] DateTime? returnDate,
-        [FromQuery] string? cabins,
-        [FromQuery] int adults = 1,
-        [FromQuery] int children = 0,
-        [FromQuery] int infants = 0,
-        CancellationToken cancellationToken = default)
-    {
-        var query = new SearchFlightsQuery(
-            originCode,
-            destinationCode,
-            departureDate,
-            returnDate,
-            cabins?.Split(',').Select(c => c.Trim()).ToArray(),
-            adults,
-            children,
-            infants);
-            
-        var result = await _mediator.Send(query, cancellationToken);
-        return Ok(result);
-    }
-}
+```yaml
+version: '3.8'
+services:
+  db:
+    image: timescale/timescaledb:latest-pg14
+    environment:
+      POSTGRES_DB: flighttracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 ```
+
+**EF Core Migrations**
+
+```bash
+dotnet ef database update --project backend/src/FlightTracker.Infrastructure --startup-project backend/src/FlightTracker.Api
+```
+
+**Testcontainers for Integration Tests**
+
+Integration tests should use Testcontainers to provision isolated DB instances, ensuring tests do not affect local or shared environments.
+
+---
