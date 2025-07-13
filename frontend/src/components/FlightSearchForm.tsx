@@ -15,6 +15,11 @@ interface FlightSearchFormProps {
 export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFormProps) {
   const [tripType, setTripType] = useState<'roundtrip' | 'oneway'>('roundtrip');
   
+  // Calculate default dates
+  const today = new Date();
+  const oneMonthFromNow = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const twoMonthsFromNow = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
+  
   const {
     register,
     handleSubmit,
@@ -25,6 +30,10 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
     resolver: zodResolver(flightSearchSchema),
     mode: 'onChange',
     defaultValues: {
+      originCode: 'AMS',
+      destinationCode: 'GIG',
+      departureDate: oneMonthFromNow.toISOString().split('T')[0],
+      returnDate: twoMonthsFromNow.toISOString().split('T')[0],
       adults: 1,
       children: 0,
       infants: 0,
@@ -90,6 +99,7 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
           <AirportAutocomplete
             label="From"
             placeholder="Search for departure airport..."
+            initialValue="AMS - Amsterdam Airport Schiphol, Amsterdam"
             onChange={(code) => setValue('originCode', code)}
             error={errors.originCode?.message}
           />
@@ -97,6 +107,7 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
           <AirportAutocomplete
             label="To"
             placeholder="Search for destination airport..."
+            initialValue="GIG - Rio de Janeiro-Galeão International Airport, Rio de Janeiro"
             onChange={(code) => setValue('destinationCode', code)}
             error={errors.destinationCode?.message}
           />

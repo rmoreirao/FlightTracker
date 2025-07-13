@@ -52,13 +52,34 @@ public static class AirportCodeValidator
     // Simple mock validation - in real implementation, this would check against a database
     private static bool BeKnownAirport(string airportCode)
     {
-        // Common airport codes for validation demo
+        // Airport codes aligned with frontend airports.ts file
         var knownAirports = new[]
         {
-            "LAX", "JFK", "LHR", "CDG", "FRA", "AMS", "MAD", "BCN", "FCO", "MUC",
-            "ORD", "ATL", "DFW", "DEN", "PHX", "SFO", "SEA", "LAS", "CLT", "MIA",
-            "YYZ", "YVR", "NRT", "ICN", "PVG", "HKG", "SIN", "BKK", "KUL", "CGK",
-            "SYD", "MEL", "PER", "BNE", "AKL", "DXB", "DOH", "AUH", "CAI", "JNB"
+            // Major US Airports
+            "LAX", "JFK", "LGA", "EWR", "ORD", "MDW", "ATL", "MIA", "DFW", "DEN",
+            "SFO", "SJC", "OAK", "SEA", "LAS", "PHX", "BOS", "DTW", "MSP", "CLT",
+            "IAH", "HOU", "PHL", "DCA", "IAD", "BWI", "SAN", "TPA", "MCO", "FLL",
+            "PDX", "SLC", "RDU", "AUS", "BNA", "STL", "MSY", "CLE", "CMH", "IND",
+            "MKE", "PIT", "CVG", "MCI", "OMA", "DSM", "RSW", "JAX", "SAV", "CHS", "MYR",
+            
+            // Major International Airports
+            "LHR", "LGW", "STN", "LTN", "CDG", "ORY", "FRA", "MUC", "BER", "AMS",
+            "ZUR", "VIE", "FCO", "MXP", "BCN", "MAD", "LIS", "ARN", "CPH", "OSL",
+            "HEL", "IST", "DOH", "DXB", "AUH", "CAI", "JNB", "CPT",
+            
+            // Major Asian Airports
+            "NRT", "HND", "KIX", "ICN", "GMP", "PEK", "PKX", "PVG", "SHA", "CAN",
+            "HKG", "TPE", "SIN", "KUL", "BKK", "DMK", "CGK", "MNL", "BOM", "DEL",
+            "BLR", "HYD", "MAA", "CCU",
+            
+            // Canadian Airports
+            "YYZ", "YUL", "YVR", "YYC", "YEG", "YOW", "YHZ", "YWG",
+            
+            // Australian/Oceania Airports
+            "SYD", "MEL", "BNE", "PER", "ADL", "DRW", "AKL", "CHC", "WLG",
+            
+            // South American Airports
+            "GRU", "GIG", "BSB", "EZE", "SCL", "LIM", "BOG", "CCS", "UIO"
         };
         
         return knownAirports.Contains(airportCode?.ToUpperInvariant());
@@ -80,18 +101,64 @@ public static class AirportCodeValidator
 
     private static string GetCountryForAirport(string airportCode)
     {
-        // Simplified country mapping for demo purposes
+        // Simplified country mapping for demo purposes - aligned with airports.ts
         var countryMapping = new Dictionary<string, string>
         {
-            { "LAX", "US" }, { "JFK", "US" }, { "ORD", "US" }, { "ATL", "US" }, { "DFW", "US" },
-            { "LHR", "GB" }, { "LGW", "GB" }, { "MAN", "GB" },
-            { "CDG", "FR" }, { "ORY", "FR" }, { "NCE", "FR" },
-            { "FRA", "DE" }, { "MUC", "DE" }, { "TXL", "DE" },
-            { "AMS", "NL" }, { "RTM", "NL" },
-            { "NRT", "JP" }, { "HND", "JP" }, { "KIX", "JP" }
+            // United States
+            { "LAX", "US" }, { "JFK", "US" }, { "LGA", "US" }, { "EWR", "US" }, { "ORD", "US" },
+            { "MDW", "US" }, { "ATL", "US" }, { "MIA", "US" }, { "DFW", "US" }, { "DEN", "US" },
+            { "SFO", "US" }, { "SJC", "US" }, { "OAK", "US" }, { "SEA", "US" }, { "LAS", "US" },
+            { "PHX", "US" }, { "BOS", "US" }, { "DTW", "US" }, { "MSP", "US" }, { "CLT", "US" },
+            { "IAH", "US" }, { "HOU", "US" }, { "PHL", "US" }, { "DCA", "US" }, { "IAD", "US" },
+            { "BWI", "US" }, { "SAN", "US" }, { "TPA", "US" }, { "MCO", "US" }, { "FLL", "US" },
+            { "PDX", "US" }, { "SLC", "US" }, { "RDU", "US" }, { "AUS", "US" }, { "BNA", "US" },
+            { "STL", "US" }, { "MSY", "US" }, { "CLE", "US" }, { "CMH", "US" }, { "IND", "US" },
+            { "MKE", "US" }, { "PIT", "US" }, { "CVG", "US" }, { "MCI", "US" }, { "OMA", "US" },
+            { "DSM", "US" }, { "RSW", "US" }, { "JAX", "US" }, { "SAV", "US" }, { "CHS", "US" }, { "MYR", "US" },
+            
+            // United Kingdom
+            { "LHR", "GB" }, { "LGW", "GB" }, { "STN", "GB" }, { "LTN", "GB" },
+            
+            // France
+            { "CDG", "FR" }, { "ORY", "FR" },
+            
+            // Germany
+            { "FRA", "DE" }, { "MUC", "DE" }, { "BER", "DE" },
+            
+            // Netherlands
+            { "AMS", "NL" },
+            
+            // Other European
+            { "ZUR", "CH" }, { "VIE", "AT" }, { "FCO", "IT" }, { "MXP", "IT" }, { "BCN", "ES" },
+            { "MAD", "ES" }, { "LIS", "PT" }, { "ARN", "SE" }, { "CPH", "DK" }, { "OSL", "NO" },
+            { "HEL", "FI" }, { "IST", "TR" },
+            
+            // Middle East & Africa
+            { "DOH", "QA" }, { "DXB", "AE" }, { "AUH", "AE" }, { "CAI", "EG" }, { "JNB", "ZA" }, { "CPT", "ZA" },
+            
+            // Asia
+            { "NRT", "JP" }, { "HND", "JP" }, { "KIX", "JP" }, { "ICN", "KR" }, { "GMP", "KR" },
+            { "PEK", "CN" }, { "PKX", "CN" }, { "PVG", "CN" }, { "SHA", "CN" }, { "CAN", "CN" },
+            { "HKG", "HK" }, { "TPE", "TW" }, { "SIN", "SG" }, { "KUL", "MY" }, { "BKK", "TH" },
+            { "DMK", "TH" }, { "CGK", "ID" }, { "MNL", "PH" }, { "BOM", "IN" }, { "DEL", "IN" },
+            { "BLR", "IN" }, { "HYD", "IN" }, { "MAA", "IN" }, { "CCU", "IN" },
+            
+            // Canada
+            { "YYZ", "CA" }, { "YUL", "CA" }, { "YVR", "CA" }, { "YYC", "CA" }, { "YEG", "CA" },
+            { "YOW", "CA" }, { "YHZ", "CA" }, { "YWG", "CA" },
+            
+            // Australia & Oceania
+            { "SYD", "AU" }, { "MEL", "AU" }, { "BNE", "AU" }, { "PER", "AU" }, { "ADL", "AU" },
+            { "DRW", "AU" }, { "AKL", "NZ" }, { "CHC", "NZ" }, { "WLG", "NZ" },
+            
+            // South America
+            { "GRU", "BR" }, { "GIG", "BR" }, { "BSB", "BR" }, { "EZE", "AR" }, { "SCL", "CL" },
+            { "LIM", "PE" }, { "BOG", "CO" }, { "CCS", "VE" }, { "UIO", "EC" }
         };
 
-        return countryMapping.GetValueOrDefault(airportCode?.ToUpperInvariant(), "UNKNOWN");
+        return countryMapping.TryGetValue(airportCode?.ToUpperInvariant() ?? "", out var country) 
+            ? country 
+            : "UNKNOWN";
     }
 }
 
