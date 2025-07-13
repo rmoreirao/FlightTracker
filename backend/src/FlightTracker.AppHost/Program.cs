@@ -34,4 +34,10 @@ builder.AddProject<Projects.FlightTracker_PriceAnalytics>("price-analytics")
     .WithReference(redis)
     .WithReference(rabbitmq);
 
+// Frontend - Next.js Application
+var frontend = builder.AddNpmApp("frontend", "../../../frontend", "dev")
+    .WithReference(apiService)
+    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithEnvironment("NEXT_PUBLIC_API_BASE_URL", apiService.GetEndpoint("https"));
+
 builder.Build().Run();
