@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "FlightTracker.Api.Tests": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:48916;http://localhost:48918"
+    }
+  }
+}

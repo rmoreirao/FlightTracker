@@ -17,7 +17,6 @@ public class MockFlightRepository : IFlightRepository
         _ = InitializeFlights(); // Fire and forget initialization
     }
 
-    // ...existing code...
     public async Task<IReadOnlyList<Flight>> SearchAsync(
         string originCode,
         string destinationCode,
@@ -26,10 +25,12 @@ public class MockFlightRepository : IFlightRepository
         CancellationToken cancellationToken = default)
     {
         var origin = await _airportRepository.GetByCodeAsync(originCode);
-        var destination = await _airportRepository.GetByCodeAsync(destinationCode);
+        if (origin == null)
+            throw new ArgumentException($"Origin airport with code {originCode} not found.");
 
-        if (origin is null || destination is null)
-            return Array.Empty<Flight>();
+        var destination = await _airportRepository.GetByCodeAsync(destinationCode);
+        if (destination == null)
+            throw new ArgumentException($"Destination airport with code {destinationCode} not found.");
 
         var flights = new List<Flight>();
 
@@ -144,17 +145,16 @@ public class MockFlightRepository : IFlightRepository
 
     private async Task InitializeFlights()
     {
-        try
-        {
-            var airports = await _airportRepository.GetAllAsync();
-            var airportList = airports.ToList();
 
-            if (airportList.Count < 2)
-                return;
+        var airports = await _airportRepository.GetAllAsync();
+        var airportList = airports.ToList();
 
-            var random = new Random(42); // Fixed seed for consistent data
-            var airlines = new[] { "AA", "DL", "UA", "WN", "B6" };
-            var airlineNames = new Dictionary<string, string>
+        if (airportList.Count < 2)
+            return;
+
+        var random = new Random(42); // Fixed seed for consistent data
+        var airlines = new[] { "AA", "DL", "UA", "WN", "B6" };
+        var airlineNames = new Dictionary<string, string>
             {
                 { "AA", "American Airlines" },
                 { "DL", "Delta Air Lines" },
@@ -163,60 +163,56 @@ public class MockFlightRepository : IFlightRepository
                 { "B6", "JetBlue Airways" }
             };
 
-            for (int i = 0; i < 100; i++)
-            {
-                var originAirport = airportList[random.Next(airportList.Count)];
-                var destinationAirport = airportList[random.Next(airportList.Count)];
-
-                // Ensure origin and destination are different
-                while (destinationAirport.Code == originAirport.Code)
-                {
-                    destinationAirport = airportList[random.Next(airportList.Count)];
-                }
-
-                var airlineCode = airlines[random.Next(airlines.Length)];
-                var flightNumber = $"{airlineCode}{random.Next(1000, 9999)}";
-
-                var baseDate = DateTime.Today.AddDays(random.Next(1, 90));
-                var departureTime = baseDate.AddHours(random.Next(6, 22)).AddMinutes(random.Next(0, 4) * 15);
-                var duration = TimeSpan.FromMinutes(random.Next(90, 360));
-                var arrivalTime = departureTime.Add(duration);
-
-                var price = new Money(random.Next(200, 1200), "USD");
-                var cabinClass = (CabinClass)random.Next(1, 5);
-
-                var segment = new FlightSegment(
-                    flightNumber,
-                    airlineCode,
-                    originAirport,
-                    destinationAirport,
-                    departureTime,
-                    arrivalTime,
-                    1, // segment order
-                    $"Boeing {random.Next(700, 800)}" // aircraft type
-                );
-
-                var flight = new Flight(
-                    flightNumber,
-                    airlineCode,
-                    airlineNames[airlineCode],
-                    originAirport,
-                    destinationAirport,
-                    departureTime,
-                    arrivalTime,
-                    price,
-                    cabinClass
-                );
-
-                // Add the segment to the flight
-                flight.AddSegment(segment);
-
-                _flights.Add(flight);
-            }
-        }
-        catch
+        for (int i = 0; i < 100; i++)
         {
-            // If initialization fails, just use empty flights list
+            var originAirport = airportList[random.Next(airportList.Count)];
+            var destinationAirport = airportList[random.Next(airportList.Count)];
+
+            // Ensure origin and destination are different
+            while (destinationAirport.Code == originAirport.Code)
+            {
+                destinationAirport = airportList[random.Next(airportList.Count)];
+            }
+
+            var airlineCode = airlines[random.Next(airlines.Length)];
+            var flightNumber = $"{airlineCode}{random.Next(1000, 9999)}";
+
+            var baseDate = DateTime.Today.AddDays(random.Next(1, 90));
+            var departureTime = baseDate.AddHours(random.Next(6, 22)).AddMinutes(random.Next(0, 4) * 15);
+            var duration = TimeSpan.FromMinutes(random.Next(90, 360));
+            var arrivalTime = departureTime.Add(duration);
+
+            var price = new Money(random.Next(200, 1200), "USD");
+            var cabinClass = (CabinClass)random.Next(1, 5);
+
+            var segment = new FlightSegment(
+                flightNumber,
+                airlineCode,
+                originAirport,
+                destinationAirport,
+                departureTime,
+                arrivalTime,
+                1, // segment order
+                $"Boeing {random.Next(700, 800)}" // aircraft type
+            );
+
+            var flight = new Flight(
+                flightNumber,
+                airlineCode,
+                airlineNames[airlineCode],
+                originAirport,
+                destinationAirport,
+                departureTime,
+                arrivalTime,
+                price,
+                cabinClass
+            );
+
+            // Add the segment to the flight
+            flight.AddSegment(segment);
+
+            _flights.Add(flight);
         }
+
     }
 }
