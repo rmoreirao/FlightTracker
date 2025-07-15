@@ -1,10 +1,26 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Check if the scripts directory exists
+var scriptsPath = "../FlightTracker.Infrastructure/scripts"; 
+var scriptsFullPath = Path.GetFullPath(scriptsPath);
+if (!Directory.Exists(scriptsFullPath))
+{
+    throw new DirectoryNotFoundException($"Scripts directory not found at: {scriptsFullPath}");
+}
+
+// Check if the init script exists
+var initScriptPath = Path.Combine(scriptsFullPath, "init-db.sql");
+if (!File.Exists(initScriptPath))
+{
+    throw new FileNotFoundException($"Init script not found at: {initScriptPath}");
+}
+
+
 // Database - PostgreSQL with TimescaleDB extension and development setup
 var postgres = builder.AddPostgres("postgres")
     .WithDataVolume()
     .WithPgAdmin()
-    .WithInitBindMount("../../../scripts/init-db.sql")
+    .WithInitBindMount(scriptsPath)
     .WithEnvironment("POSTGRES_DB", "flighttracker")
     .WithEnvironment("POSTGRES_USER", "flighttracker") 
     .WithEnvironment("POSTGRES_PASSWORD", "dev_password")
@@ -24,6 +40,9 @@ var apiService = builder.AddProject<Projects.FlightTracker_Api>("api")
     .WithReference(postgres)
     .WithReference(redis)
     .WithReference(rabbitmq)
+    .WaitFor(postgres)
+    .WaitFor(redis)
+    .WaitFor(rabbitmq)
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
     .WithEnvironment("AutoMigrateOnStartup", "true")
     .WithEnvironment("SeedTestDataOnStartup", "true")

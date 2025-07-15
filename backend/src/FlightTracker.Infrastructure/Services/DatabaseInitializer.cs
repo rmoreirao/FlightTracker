@@ -30,49 +30,42 @@ public class DatabaseInitializer : IDatabaseInitializer
     public async Task InitializeAsync()
     {
         _logger.LogInformation("🚀 Initializing development database...");
-        
-        try
+
+        // Ensure database exists
+        await _context.Database.EnsureCreatedAsync();
+
+        // Run migrations
+        if (_options.AutoMigrateOnStartup)
         {
-            // Ensure database exists
-            await _context.Database.EnsureCreatedAsync();
-            
-            // Run migrations
-            if (_options.AutoMigrateOnStartup)
-            {
-                await MigrateAsync();
-            }
-            
-            // Create TimescaleDB hypertables
-            if (_options.CreateHypertables)
-            {
-                await CreateTimescaleHypertablesAsync();
-            }
-            
-            // Seed test data
-            if (_options.SeedTestDataOnStartup)
-            {
-                await SeedAsync();
-            }
-            
-            _logger.LogInformation("✅ Database initialization completed successfully");
+            await MigrateAsync();
         }
-        catch (Exception ex)
+
+        // Create TimescaleDB hypertables
+        if (_options.CreateHypertables)
         {
-            _logger.LogError(ex, "❌ Database initialization failed");
-            throw;
+            await CreateTimescaleHypertablesAsync();
         }
+
+        // Seed test data
+        if (_options.SeedTestDataOnStartup)
+        {
+            await SeedAsync();
+        }
+
+        _logger.LogInformation("✅ Database initialization completed successfully");
+
     }
 
     public async Task MigrateAsync()
     {
         _logger.LogInformation("🔄 Running database migrations...");
-        
+
         var pendingMigrations = await _context.Database.GetPendingMigrationsAsync();
         if (pendingMigrations.Any())
         {
-            _logger.LogInformation("Found {Count} pending migrations: {Migrations}", 
+            _logger.LogInformation("Found {Count} pending migrations: {Migrations}",
                 pendingMigrations.Count(), string.Join(", ", pendingMigrations));
-            
+
             await _context.Database.MigrateAsync();
             _logger.LogInformation("✅ Database migrations completed");
         }
@@ -92,21 +85,15 @@ public class DatabaseInitializer : IDatabaseInitializer
     public async Task CreateTimescaleHypertablesAsync()
     {
         _logger.LogInformation("📊 Creating TimescaleDB hypertables...");
-        
-        try
-        {
-            // Create hypertables for time-series data
-            await _context.Database.ExecuteSqlRawAsync(
-                "SELECT create_hypertable('price_snapshots', 'created_at', if_not_exists => true);");
-                
-            await _context.Database.ExecuteSqlRawAsync(
-                "SELECT create_hypertable('flight_queries', 'created_at', if_not_exists => true);");
-            
-            _logger.LogInformation("✅ TimescaleDB hypertables created successfully");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "⚠️ Failed to create TimescaleDB hypertables. This is normal if TimescaleDB extension is not available.");
-        }
+
+        // Create hypertables for time-series data
+        await _context.Database.ExecuteSqlRawAsync(
+            "SELECT create_hypertable('price_snapshots', 'created_at', if_not_exists => true);");
+
+        await _context.Database.ExecuteSqlRawAsync(
+            "SELECT create_hypertable('flight_queries', 'created_at', if_not_exists => true);");
+
+        _logger.LogInformation("✅ TimescaleDB hypertables created successfully");
+
     }
 }

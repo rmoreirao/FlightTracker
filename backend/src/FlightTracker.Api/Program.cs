@@ -99,16 +99,16 @@ if (app.Environment.IsDevelopment())
     var initializer = scope.ServiceProvider.GetService<IDatabaseInitializer>();
     if (initializer != null)
     {
-        try
-        {
-            await initializer.InitializeAsync();
-        }
-        catch (Exception ex)
-        {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "An error occurred while initializing the database");
-            // Don't throw in development - let the app start even if DB init fails
-        }
+        // try
+        // {
+        await initializer.InitializeAsync();
+        // }
+        // catch (Exception ex)
+        // {
+        //     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        //     logger.LogError(ex, "An error occurred while initializing the database");
+        //     // Don't throw in development - let the app start even if DB init fails
+        // }
     }
 }
 
