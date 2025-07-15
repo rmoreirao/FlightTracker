@@ -23,28 +23,34 @@ public static class DependencyInjection
         // Register repositories
         if (environment.IsDevelopment())
         {
-            // Use mock repositories in development
-            services.AddSingleton<IAirportRepository, MockAirportRepository>();
-            services.AddSingleton<IAirlineRepository, MockAirlineRepository>();
-            services.AddSingleton<IFlightRepository, MockFlightRepository>();
-            services.AddSingleton<IPriceSnapshotRepository, MockPriceSnapshotRepository>();
-            services.AddSingleton<IFlightQueryRepository, MockFlightQueryRepository>();
+            // Option to use either mock or real repositories in development
+            var useRealRepositories = Environment.GetEnvironmentVariable("USE_REAL_REPOSITORIES") == "true";
+            
+            if (useRealRepositories)
+            {
+                services.AddScoped<IAirportRepository, EfAirportRepository>();
+                services.AddScoped<IAirlineRepository, EfAirlineRepository>();
+                services.AddScoped<IFlightRepository, EfFlightRepository>();
+                services.AddScoped<IPriceSnapshotRepository, EfPriceSnapshotRepository>();
+                services.AddScoped<IFlightQueryRepository, EfFlightQueryRepository>();
+            }
+            else
+            {
+                services.AddSingleton<IAirportRepository, MockAirportRepository>();
+                services.AddSingleton<IAirlineRepository, MockAirlineRepository>();
+                services.AddSingleton<IFlightRepository, MockFlightRepository>();
+                services.AddSingleton<IPriceSnapshotRepository, MockPriceSnapshotRepository>();
+                services.AddSingleton<IFlightQueryRepository, MockFlightQueryRepository>();
+            }
         }
         else
         {
-            // TODO: Add real repository implementations for production
-            // services.AddScoped<IAirportRepository, EfAirportRepository>();
-            // services.AddScoped<IAirlineRepository, EfAirlineRepository>();
-            // services.AddScoped<IFlightRepository, EfFlightRepository>();
-            // services.AddScoped<IPriceSnapshotRepository, EfPriceSnapshotRepository>();
-            // services.AddScoped<IFlightQueryRepository, EfFlightQueryRepository>();
-            
-            // For now, use mock repositories in all environments
-            services.AddSingleton<IAirportRepository, MockAirportRepository>();
-            services.AddSingleton<IAirlineRepository, MockAirlineRepository>();
-            services.AddSingleton<IFlightRepository, MockFlightRepository>();
-            services.AddSingleton<IPriceSnapshotRepository, MockPriceSnapshotRepository>();
-            services.AddSingleton<IFlightQueryRepository, MockFlightQueryRepository>();
+            // Production always uses real repositories
+            services.AddScoped<IAirportRepository, EfAirportRepository>();
+            services.AddScoped<IAirlineRepository, EfAirlineRepository>();
+            services.AddScoped<IFlightRepository, EfFlightRepository>();
+            services.AddScoped<IPriceSnapshotRepository, EfPriceSnapshotRepository>();
+            services.AddScoped<IFlightQueryRepository, EfFlightQueryRepository>();
         }
 
         // Register services

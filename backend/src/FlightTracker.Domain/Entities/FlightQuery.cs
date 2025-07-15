@@ -6,15 +6,16 @@ namespace FlightTracker.Domain.Entities;
 public class FlightQuery
 {
     public Guid Id { get; private set; }
-    public string OriginCode { get; private set; }
-    public string DestinationCode { get; private set; }
-    public Airport Origin { get; private set; }
-    public Airport Destination { get; private set; }
+    public string OriginCode { get; private set; } = string.Empty;
+    public string DestinationCode { get; private set; } = string.Empty;
+    public Airport? Origin { get; private set; }
+    public Airport? Destination { get; private set; }
     public DateTime DepartureDate { get; private set; }
     public DateTime? ReturnDate { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public int SearchCount { get; private set; }
     public DateTime LastSearchedAt { get; private set; }
+    public string? UserId { get; private set; } // Optional tracking for user-specific search history
     public List<PriceSnapshot> PriceSnapshots { get; private set; } = new();
 
     public FlightQuery(
@@ -55,6 +56,11 @@ public class FlightQuery
     {
         SearchCount++;
         LastSearchedAt = DateTime.UtcNow;
+    }
+
+    public void SetUserId(string? userId)
+    {
+        UserId = userId;
     }
 
     public void AddPriceSnapshot(PriceSnapshot priceSnapshot)

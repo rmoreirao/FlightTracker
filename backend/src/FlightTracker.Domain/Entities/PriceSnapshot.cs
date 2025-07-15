@@ -10,11 +10,11 @@ public class PriceSnapshot
 {
     public long Id { get; private set; }
     public Guid QueryId { get; private set; }
-    public FlightQuery FlightQuery { get; private set; }
-    public string AirlineCode { get; private set; }
-    public Airline Airline { get; private set; }
+    public FlightQuery? FlightQuery { get; private set; }
+    public string AirlineCode { get; private set; } = string.Empty;
+    public Airline? Airline { get; private set; }
     public CabinClass Cabin { get; private set; }
-    public Money Price { get; private set; }
+    public Money Price { get; private set; } = null!;
     public string? DeepLink { get; private set; }
     public string? FlightNumber { get; private set; }
     public DateTime? DepartureTime { get; private set; }
@@ -62,6 +62,40 @@ public class PriceSnapshot
 
     // For EF Core
     private PriceSnapshot() { }
+
+    /// <summary>
+    /// Factory method to restore a price snapshot from storage (used by repositories)
+    /// </summary>
+    public static PriceSnapshot Restore(
+        long id,
+        Guid queryId,
+        string airlineCode,
+        CabinClass cabin,
+        Money price,
+        string? deepLink = null,
+        string? flightNumber = null,
+        DateTime? departureTime = null,
+        DateTime? arrivalTime = null,
+        int stops = 0,
+        DateTime collectedAt = default)
+    {
+        var snapshot = new PriceSnapshot
+        {
+            Id = id,
+            QueryId = queryId,
+            AirlineCode = airlineCode.ToUpperInvariant(),
+            Cabin = cabin,
+            Price = price,
+            DeepLink = deepLink,
+            FlightNumber = flightNumber?.ToUpperInvariant(),
+            DepartureTime = departureTime,
+            ArrivalTime = arrivalTime,
+            Stops = stops,
+            CollectedAt = collectedAt == default ? DateTime.UtcNow : collectedAt
+        };
+        
+        return snapshot;
+    }
 
     public TimeSpan? Duration => 
         DepartureTime.HasValue && ArrivalTime.HasValue 

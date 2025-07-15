@@ -82,11 +82,12 @@ public static class AutoFixtureCustomizations
                 
                 return new FlightSegment(
                     flightNumber ?? $"{airline.Code}{fixture.Create<int>() % 9999:D4}",
-                    airline,
+                    airline.Code,
                     origin,
                     destination,
                     validDeparture,
-                    validDeparture.Add(validDuration));
+                    validDeparture.Add(validDuration),
+                    1); // Default segment order
             })
             .OmitAutoProperties());
 
@@ -108,9 +109,7 @@ public static class AutoFixtureCustomizations
                     origin,
                     destination,
                     departureDate,
-                    returnDate,
-                    fixture.Create<int>() % 9 + 1, // 1-9 passengers
-                    fixture.Create<CabinClass>());
+                    returnDate);
             })
             .OmitAutoProperties());
 
@@ -118,11 +117,16 @@ public static class AutoFixtureCustomizations
         fixture.Customize<PriceSnapshot>(composer => composer
             .FromFactory(() =>
             {
-                var flight = fixture.Create<Flight>();
+                var query = fixture.Create<FlightQuery>();
+                var airlineCode = ValidAirlineCodes.GetRandom();
                 var price = fixture.Create<Money>();
                 var cabinClass = fixture.Create<CabinClass>();
                 
-                return new PriceSnapshot(flight.Id, price, cabinClass, DateTime.UtcNow);
+                return new PriceSnapshot(
+                    query.Id,
+                    airlineCode,
+                    cabinClass,
+                    price);
             })
             .OmitAutoProperties());
 

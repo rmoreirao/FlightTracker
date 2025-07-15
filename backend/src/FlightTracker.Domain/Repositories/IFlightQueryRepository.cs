@@ -42,4 +42,27 @@ public interface IFlightQueryRepository
     /// Delete old queries (cleanup)
     /// </summary>
     Task DeleteOlderThanAsync(DateTime cutoffDate, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Find existing query matching the search criteria
+    /// </summary>
+    Task<FlightQuery?> FindExistingQueryAsync(
+        string originCode,
+        string destinationCode,
+        DateTime departureDate,
+        DateTime? returnDate = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Increment search count for a query
+    /// </summary>
+    Task<FlightQuery> IncrementSearchCountAsync(Guid queryId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get recent queries within a time window
+    /// </summary>
+    Task<IReadOnlyList<FlightQuery>> GetRecentQueriesAsync(
+        TimeSpan timeWindow,
+        int? limit = null,
+        CancellationToken cancellationToken = default);
 }

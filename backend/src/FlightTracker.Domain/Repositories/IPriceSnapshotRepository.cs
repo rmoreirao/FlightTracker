@@ -1,4 +1,5 @@
 using FlightTracker.Domain.Entities;
+using FlightTracker.Domain.ValueObjects;
 
 namespace FlightTracker.Domain.Repositories;
 
@@ -47,4 +48,22 @@ public interface IPriceSnapshotRepository
     /// Delete old price snapshots (cleanup)
     /// </summary>
     Task DeleteOlderThanAsync(DateTime cutoffDate, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get price trends over time for a route
+    /// </summary>
+    Task<IReadOnlyList<PriceTrendData>> GetPriceTrendsAsync(
+        string originCode,
+        string destinationCode,
+        int days = 30,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get airline performance analytics for a route
+    /// </summary>
+    Task<IReadOnlyList<AirlinePerformance>> GetAirlinePerformanceAsync(
+        string originCode,
+        string destinationCode,
+        int days = 30,
+        CancellationToken cancellationToken = default);
 }

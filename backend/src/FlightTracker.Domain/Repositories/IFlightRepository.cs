@@ -45,4 +45,20 @@ public interface IFlightRepository
     /// Delete a flight
     /// </summary>
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get flights by route within a date range
+    /// </summary>
+    Task<IReadOnlyList<Flight>> GetByRouteAsync(
+        string originCode,
+        string destinationCode,
+        int days = 30,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get recent flights
+    /// </summary>
+    Task<IReadOnlyList<Flight>> GetRecentFlightsAsync(
+        int count = 50,
+        CancellationToken cancellationToken = default);
 }

@@ -143,6 +143,36 @@ public class MockFlightRepository : IFlightRepository
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<Flight>> GetByRouteAsync(
+        string originCode,
+        string destinationCode,
+        int days = 30,
+        CancellationToken cancellationToken = default)
+    {
+        var flights = _flights
+            .Where(f => f.Origin.Code == originCode && 
+                       f.Destination.Code == destinationCode &&
+                       f.DepartureTime.Date >= DateTime.UtcNow.Date &&
+                       f.DepartureTime.Date <= DateTime.UtcNow.Date.AddDays(days))
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyList<Flight>>(flights);
+    }
+
+    public Task<IReadOnlyList<Flight>> GetRecentFlightsAsync(
+        int count = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var recentFlights = _flights
+            .OrderByDescending(f => f.DepartureTime)
+            .Take(count)
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyList<Flight>>(recentFlights);
+    }
+
     private async Task InitializeFlights()
     {
 

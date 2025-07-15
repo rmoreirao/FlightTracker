@@ -67,20 +67,27 @@ public class FlightBuilder
 
     public Flight Build()
     {
-        var flight = new Flight();
-        
-        foreach (var segment in _segments)
+        // Use the first segment for primary flight info, or create default
+        var primarySegment = _segments.FirstOrDefault() ?? 
+            FlightSegmentBuilder.Create().Build();
+
+        var flight = new Flight(
+            primarySegment.FlightNumber,
+            primarySegment.AirlineCode,
+            "Test Airline", // Default airline name
+            primarySegment.Origin ?? new Airport("LAX", "Los Angeles International", "Los Angeles", "USA", 34.0522m, -118.2437m),
+            primarySegment.Destination ?? new Airport("JFK", "John F. Kennedy International", "New York", "USA", 40.6413m, -73.7781m),
+            primarySegment.DepartureTime,
+            primarySegment.ArrivalTime,
+            new Money(299.99m, "USD"), // Default price
+            CabinClass.Economy, // Default cabin class
+            null, // No deep link
+            _status);
+
+        // Add additional segments if any
+        foreach (var segment in _segments.Skip(1))
         {
             flight.AddSegment(segment);
-        }
-
-        if (_confirmationCode != null)
-        {
-            flight.UpdateStatus(_status, _confirmationCode);
-        }
-        else
-        {
-            flight.UpdateStatus(_status);
         }
 
         return flight;
@@ -94,8 +101,8 @@ public class FlightSegmentBuilder
 {
     private string _flightNumber = "AA1234";
     private Airline _airline = new("AA", "American Airlines");
-    private Airport _origin = new("JFK", "John F. Kennedy International", "New York", "USA");
-    private Airport _destination = new("LAX", "Los Angeles International", "Los Angeles", "USA");
+    private Airport _origin = new("JFK", "John F. Kennedy International", "New York", "USA", 40.6413m, -73.7781m);
+    private Airport _destination = new("LAX", "Los Angeles International", "Los Angeles", "USA", 34.0522m, -118.2437m);
     private DateTime _departureTime = DateTime.Today.AddDays(1).AddHours(10);
     private DateTime _arrivalTime = DateTime.Today.AddDays(1).AddHours(16);
 
@@ -121,8 +128,8 @@ public class FlightSegmentBuilder
 
     public FlightSegmentBuilder WithRoute(string originCode, string destinationCode)
     {
-        _origin = new Airport(originCode, $"{originCode} Airport", $"{originCode} City", "USA");
-        _destination = new Airport(destinationCode, $"{destinationCode} Airport", $"{destinationCode} City", "USA");
+        _origin = new Airport(originCode, $"{originCode} Airport", $"{originCode} City", "USA", 0m, 0m);
+        _destination = new Airport(destinationCode, $"{destinationCode} Airport", $"{destinationCode} City", "USA", 0m, 0m);
         return this;
     }
 
@@ -158,7 +165,14 @@ public class FlightSegmentBuilder
 
     public FlightSegment Build()
     {
-        return new FlightSegment(_flightNumber, _airline, _origin, _destination, _departureTime, _arrivalTime);
+        return new FlightSegment(
+            _flightNumber, 
+            _airline.Code, 
+            _origin, 
+            _destination, 
+            _departureTime, 
+            _arrivalTime,
+            1); // Default segment order
     }
 }
 
@@ -221,7 +235,7 @@ public class FlightQueryBuilder
 
     public FlightQuery Build()
     {
-        return new FlightQuery(_origin, _destination, _departureDate, _returnDate, _passengers, _cabinClass);
+        return new FlightQuery(_origin, _destination, _departureDate, _returnDate);
     }
 }
 
@@ -230,22 +244,33 @@ public class FlightQueryBuilder
 /// </summary>
 public class PriceSnapshotBuilder
 {
-    private Guid _flightId = Guid.NewGuid();
+    private Guid _queryId = Guid.NewGuid();
+    private string _airlineCode = "AA";
     private Money _price = new(500m, "USD");
     private CabinClass _cabinClass = CabinClass.Economy;
-    private DateTime _timestamp = DateTime.UtcNow;
+    private string? _deepLink;
+    private string? _flightNumber = "AA1234";
+    private DateTime? _departureTime;
+    private DateTime? _arrivalTime;
+    private int _stops = 0;
 
     public static PriceSnapshotBuilder Create() => new();
 
-    public PriceSnapshotBuilder ForFlight(Guid flightId)
+    public PriceSnapshotBuilder ForQuery(Guid queryId)
     {
-        _flightId = flightId;
+        _queryId = queryId;
         return this;
     }
 
-    public PriceSnapshotBuilder ForFlight(Flight flight)
+    public PriceSnapshotBuilder ForQuery(FlightQuery query)
     {
-        _flightId = flight.Id;
+        _queryId = query.Id;
+        return this;
+    }
+
+    public PriceSnapshotBuilder WithAirline(string airlineCode)
+    {
+        _airlineCode = airlineCode;
         return this;
     }
 
@@ -267,14 +292,32 @@ public class PriceSnapshotBuilder
         return this;
     }
 
-    public PriceSnapshotBuilder WithTimestamp(DateTime timestamp)
+    public PriceSnapshotBuilder WithFlightDetails(string? flightNumber, DateTime? departureTime = null, DateTime? arrivalTime = null, int stops = 0)
     {
-        _timestamp = timestamp;
+        _flightNumber = flightNumber;
+        _departureTime = departureTime;
+        _arrivalTime = arrivalTime;
+        _stops = stops;
+        return this;
+    }
+
+    public PriceSnapshotBuilder WithDeepLink(string? deepLink)
+    {
+        _deepLink = deepLink;
         return this;
     }
 
     public PriceSnapshot Build()
     {
-        return new PriceSnapshot(_flightId, _price, _cabinClass, _timestamp);
+        return new PriceSnapshot(
+            _queryId,
+            _airlineCode,
+            _cabinClass,
+            _price,
+            _deepLink,
+            _flightNumber,
+            _departureTime,
+            _arrivalTime,
+            _stops);
     }
 }

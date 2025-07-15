@@ -8,10 +8,14 @@ namespace FlightTracker.Domain.Entities;
 public class FlightSegment
 {
     public int Id { get; private set; }
-    public string FlightNumber { get; private set; }
-    public string AirlineCode { get; private set; }
-    public Airport Origin { get; private set; }
-    public Airport Destination { get; private set; }
+    public Guid? FlightId { get; private set; } // Foreign key to Flight
+    public string FlightNumber { get; private set; } = string.Empty;
+    public string AirlineCode { get; private set; } = string.Empty;
+    public string OriginCode { get; private set; } = string.Empty;
+    public string DestinationCode { get; private set; } = string.Empty;
+    public Airport? Origin { get; private set; }
+    public Airport? Destination { get; private set; }
+    public Airline? Airline { get; private set; }
     public DateTime DepartureTime { get; private set; }
     public DateTime ArrivalTime { get; private set; }
     public TimeSpan Duration => ArrivalTime - DepartureTime;
@@ -55,6 +59,8 @@ public class FlightSegment
         AirlineCode = airlineCode.ToUpperInvariant();
         Origin = origin;
         Destination = destination;
+        OriginCode = origin.Code;
+        DestinationCode = destination.Code;
         DepartureTime = departureTime;
         ArrivalTime = arrivalTime;
         SegmentOrder = segmentOrder;
@@ -77,6 +83,6 @@ public class FlightSegment
 
     public override string ToString()
     {
-        return $"{FlightNumber} {Origin.Code}-{Destination.Code} {DepartureTime:HH:mm}-{ArrivalTime:HH:mm}";
+        return $"{FlightNumber} {OriginCode}-{DestinationCode} {DepartureTime:HH:mm}-{ArrivalTime:HH:mm}";
     }
 }

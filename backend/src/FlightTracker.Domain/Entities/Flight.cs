@@ -8,20 +8,22 @@ namespace FlightTracker.Domain.Entities;
 /// </summary>
 public class Flight
 {
-    public string FlightNumber { get; private set; }
-    public string AirlineCode { get; private set; }
-    public string AirlineName { get; private set; }
-    public Airport Origin { get; private set; }
-    public Airport Destination { get; private set; }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public string FlightNumber { get; private set; } = string.Empty;
+    public string AirlineCode { get; private set; } = string.Empty;
+    public string AirlineName { get; private set; } = string.Empty;
+    public Airport? Origin { get; private set; }
+    public Airport? Destination { get; private set; }
     public DateTime DepartureTime { get; private set; }
     public DateTime ArrivalTime { get; private set; }
     public TimeSpan Duration => ArrivalTime - DepartureTime;
     public List<FlightSegment> Segments { get; private set; } = new();
-    public Money Price { get; private set; }
+    public Money Price { get; private set; } = null!;
     public CabinClass CabinClass { get; private set; }
     public string? DeepLink { get; private set; }
     public int Stops => Math.Max(0, Segments.Count - 1);
     public FlightStatus Status { get; private set; }
+    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
     public Flight(
         string flightNumber,
@@ -101,10 +103,10 @@ public class Flight
 
     public bool IsDirect => Segments.Count <= 1;
 
-    public bool IsInternational => Origin.Country != Destination.Country;
+    public bool IsInternational => Origin?.Country != Destination?.Country;
 
     public override string ToString()
     {
-        return $"{FlightNumber} {Origin.Code}-{Destination.Code} {DepartureTime:HH:mm}-{ArrivalTime:HH:mm} {Price.Amount} {Price.Currency}";
+        return $"{FlightNumber} {Origin?.Code}-{Destination?.Code} {DepartureTime:HH:mm}-{ArrivalTime:HH:mm} {Price.Amount} {Price.Currency}";
     }
 }

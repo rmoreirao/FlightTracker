@@ -12,7 +12,7 @@ public class DateRange : IEquatable<DateRange>
     public DateRange(DateTime startDate, DateTime endDate)
     {
         if (startDate.Date > endDate.Date)
-            throw new ArgumentException("Start date cannot be after end date");
+            throw new ArgumentException("End date must be greater than or equal to start date");
 
         StartDate = startDate.Date;
         EndDate = endDate.Date;
@@ -58,12 +58,14 @@ public class DateRange : IEquatable<DateRange>
 
     public static bool operator ==(DateRange? left, DateRange? right)
     {
-        return Equals(left, right);
+        if (ReferenceEquals(left, right)) return true;
+        if (left is null || right is null) return false;
+        return left.Equals(right);
     }
 
     public static bool operator !=(DateRange? left, DateRange? right)
     {
-        return !Equals(left, right);
+        return !(left == right);
     }
 
     public override string ToString()

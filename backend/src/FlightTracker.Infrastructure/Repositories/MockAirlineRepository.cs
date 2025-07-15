@@ -69,7 +69,16 @@ public class MockAirlineRepository : IAirlineRepository
             _airlines.Remove(airline);
             _logger.LogInformation("Deleted airline {Code}", iataCode);
         }
-    }    private static List<Airline> InitializeMockAirlines()
+    }
+
+    public async Task<IReadOnlyList<Airline>> GetActiveAirlinesAsync(CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(100, cancellationToken);
+        // Mock implementation returns a subset of airlines as "active"
+        return _airlines.Take(5).ToList().AsReadOnly();
+    }
+
+    private static List<Airline> InitializeMockAirlines()
     {
         return new List<Airline>
         {

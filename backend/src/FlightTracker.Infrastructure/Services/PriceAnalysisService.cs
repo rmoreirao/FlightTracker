@@ -24,7 +24,7 @@ public class PriceAnalysisService : IPriceAnalysisService
         _random = new Random();
     }
 
-    public async Task<PriceTrend> GetPriceTrendAsync(
+    public async Task<Domain.Services.PriceTrend> GetPriceTrendAsync(
         RouteKey route,
         DateRange dateRange,
         CancellationToken cancellationToken = default)
@@ -39,7 +39,7 @@ public class PriceAnalysisService : IPriceAnalysisService
         var averagePrice = new Money(Math.Round(basePrice * 1.05m, 2), "USD");
         var trendPercentage = (decimal)(_random.NextDouble() * 20 - 10); // -10% to +10%
         
-        return new PriceTrend(route, dateRange, averagePrice, lowestPrice, highestPrice, trendPercentage);
+        return new Domain.Services.PriceTrend(route, dateRange, averagePrice, lowestPrice, highestPrice, trendPercentage);
     }
 
     public async Task<Money?> GetLowestPriceAsync(

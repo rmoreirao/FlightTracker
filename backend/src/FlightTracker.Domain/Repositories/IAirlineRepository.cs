@@ -23,6 +23,11 @@ public interface IAirlineRepository
     Task<IReadOnlyList<Airline>> GetAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get airlines that have recent flight activity
+    /// </summary>
+    Task<IReadOnlyList<Airline>> GetActiveAirlinesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add a new airline
     /// </summary>
     Task<Airline> AddAsync(Airline airline, CancellationToken cancellationToken = default);

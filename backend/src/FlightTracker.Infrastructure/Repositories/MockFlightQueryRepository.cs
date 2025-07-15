@@ -84,4 +84,50 @@ public class MockFlightQueryRepository : IFlightQueryRepository
         _logger.LogInformation("Deleted {Count} flight queries older than {CutoffDate}",
             toRemove.Count, cutoffDate);
     }
+
+    public async Task<FlightQuery?> FindExistingQueryAsync(
+        string originCode,
+        string destinationCode,
+        DateTime departureDate,
+        DateTime? returnDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(50, cancellationToken);
+        return _flightQueries.FirstOrDefault(fq =>
+            fq.OriginCode == originCode &&
+            fq.DestinationCode == destinationCode &&
+            fq.DepartureDate.Date == departureDate.Date &&
+            fq.ReturnDate == returnDate);
+    }
+
+    public async Task<FlightQuery> IncrementSearchCountAsync(Guid queryId, CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(50, cancellationToken);
+        var query = _flightQueries.FirstOrDefault(fq => fq.Id == queryId);
+        if (query == null)
+            throw new InvalidOperationException($"Flight query with ID {queryId} not found");
+
+        query.IncrementSearchCount();
+        _logger.LogInformation("Incremented search count for query {QueryId}", queryId);
+        return query;
+    }
+
+    public async Task<IReadOnlyList<FlightQuery>> GetRecentQueriesAsync(
+        TimeSpan timeWindow,
+        int? limit = null,
+        CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(50, cancellationToken);
+        var cutoffTime = DateTime.UtcNow - timeWindow;
+        var query = _flightQueries
+            .Where(fq => fq.LastSearchedAt >= cutoffTime)
+            .OrderByDescending(fq => fq.LastSearchedAt);
+
+        if (limit.HasValue)
+        {
+            return query.Take(limit.Value).ToList().AsReadOnly();
+        }
+
+        return query.ToList().AsReadOnly();
+    }
 }
