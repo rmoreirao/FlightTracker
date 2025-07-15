@@ -3,6 +3,8 @@ using MediatR;
 using FlightTracker.Api.Application.Behaviors;
 using FlightTracker.Api.Configuration;
 using FlightTracker.Infrastructure;
+using FlightTracker.Infrastructure.Configuration;
+using FlightTracker.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +17,18 @@ if (builder.Environment.IsDevelopment())
 // Add service defaults & Aspire client integrations
 builder.AddServiceDefaults();
 
-// Add infrastructure services
-builder.Services.AddInfrastructure(builder.Environment);
+// Add PostgreSQL with Entity Framework
+builder.AddNpgsqlDbContext<FlightDbContext>("flighttracker");
+
+// Configure database options for development
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.Configure<DatabaseOptions>(
+        builder.Configuration.GetSection(DatabaseOptions.SectionName));
+}
+
+// Add infrastructure services (without DbContext since Aspire handles it)
+builder.Services.AddInfrastructureWithoutDbContext(builder.Environment);
 
 // Add MediatR for CQRS
 builder.Services.AddMediatR(cfg =>
@@ -79,6 +91,26 @@ builder.Services.AddOpenApiDocumentation();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Initialize database in development
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var initializer = scope.ServiceProvider.GetService<IDatabaseInitializer>();
+    if (initializer != null)
+    {
+        try
+        {
+            await initializer.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "An error occurred while initializing the database");
+            // Don't throw in development - let the app start even if DB init fails
+        }
+    }
+}
 
 // Configure the HTTP request pipeline.
 app.MapDefaultEndpoints();

@@ -27,6 +27,19 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
     {
         try
         {
+            // Ensure DateTime values are in UTC for PostgreSQL compatibility
+            var departureDateUtc = departureDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(departureDate, DateTimeKind.Utc) 
+                : departureDate.ToUniversalTime();
+            
+            DateTime? returnDateUtc = null;
+            if (returnDate.HasValue)
+            {
+                returnDateUtc = returnDate.Value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(returnDate.Value, DateTimeKind.Utc)
+                    : returnDate.Value.ToUniversalTime();
+            }
+
             var query = _dbSet
                 .Include(f => f.Segments)
                     .ThenInclude(s => s.Origin)
@@ -37,15 +50,15 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                 .Where(f => f.Segments.Any(s => 
                     s.OriginCode == originCode && 
                     s.DestinationCode == destinationCode &&
-                    s.DepartureTime.Date == departureDate.Date))
+                    s.DepartureTime.Date == departureDateUtc.Date))
                 .AsNoTracking();
 
-            if (returnDate.HasValue)
+            if (returnDateUtc.HasValue)
             {
                 query = query.Where(f => f.Segments.Any(s => 
                     s.OriginCode == destinationCode && 
                     s.DestinationCode == originCode &&
-                    s.DepartureTime.Date == returnDate.Value.Date));
+                    s.DepartureTime.Date == returnDateUtc.Value.Date));
             }
 
             var flights = await query
@@ -54,7 +67,7 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                 .ToListAsync(cancellationToken);
 
             _logger.LogDebug("Flight search for {Origin}-{Destination} on {DepartureDate} returned {Count} results",
-                originCode, destinationCode, departureDate, flights.Count);
+                originCode, destinationCode, departureDateUtc, flights.Count);
 
             return flights.AsReadOnly();
         }
@@ -95,6 +108,11 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
     {
         try
         {
+            // Ensure DateTime is in UTC for PostgreSQL compatibility
+            var departureDateUtc = departureDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(departureDate, DateTimeKind.Utc) 
+                : departureDate.ToUniversalTime();
+
             return await _dbSet
                 .Include(f => f.Segments)
                     .ThenInclude(s => s.Origin)
@@ -106,7 +124,7 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                 .FirstOrDefaultAsync(f => f.Segments.Any(s => 
                     s.FlightNumber == flightNumber &&
                     s.AirlineCode == airlineCode &&
-                    s.DepartureTime.Date == departureDate.Date), cancellationToken);
+                    s.DepartureTime.Date == departureDateUtc.Date), cancellationToken);
         }
         catch (Exception ex)
         {

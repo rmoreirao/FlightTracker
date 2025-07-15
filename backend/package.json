@@ -1,0 +1,20 @@
+{
+  "name": "flighttracker-backend",
+  "version": "1.0.0",
+  "description": "FlightTracker Backend Development Scripts",
+  "scripts": {
+    "dev:start": "pwsh -File scripts/dev-start.ps1",
+    "dev:stop": "docker compose down",
+    "dev:reset": "docker compose down -v && npm run dev:start",
+    "db:migrate": "dotnet ef database update --project src/FlightTracker.Infrastructure --startup-project src/FlightTracker.Api",
+    "db:seed": "dotnet run --project src/FlightTracker.Api --seed-data",
+    "db:drop": "dotnet ef database drop --force --project src/FlightTracker.Infrastructure --startup-project src/FlightTracker.Api",
+    "build": "dotnet build",
+    "test": "dotnet test",
+    "clean": "dotnet clean",
+    "restore": "dotnet restore"
+  },
+  "keywords": ["flighttracker", "aspire", "postgresql", "development"],
+  "author": "FlightTracker Team",
+  "license": "MIT"
+}
