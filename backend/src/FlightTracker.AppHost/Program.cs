@@ -16,15 +16,21 @@ if (!File.Exists(initScriptPath))
 }
 
 
-// Database - PostgreSQL with TimescaleDB extension and development setup
-var postgres = builder.AddPostgres("postgres")
+// Database - TimescaleDB (PostgreSQL with TimescaleDB extension)
+var postgresPassword = builder.AddParameter("postgres-password", value: "dev_password", secret: true);
+var postgres = builder.AddPostgres("postgres", password: postgresPassword)
+    .WithImage("timescale/timescaledb", "latest-pg17")
     .WithDataVolume()
-    .WithPgAdmin()
-    .WithInitBindMount(scriptsPath)
     .WithEnvironment("POSTGRES_DB", "flighttracker")
-    .WithEnvironment("POSTGRES_USER", "flighttracker") 
-    .WithEnvironment("POSTGRES_PASSWORD", "dev_password")
-    .AddDatabase("flighttracker");
+    .WithEnvironment("POSTGRES_SHARED_PRELOAD_LIBRARIES", "timescaledb");
+
+var flightDb = postgres.AddDatabase("flighttracker");
+
+// Add pgAdmin for database management
+var pgAdmin = builder.AddContainer("pgadmin", "dpage/pgadmin4", "latest")
+    .WithEnvironment("PGADMIN_DEFAULT_EMAIL", "admin@admin.com")
+    .WithEnvironment("PGADMIN_DEFAULT_PASSWORD", "admin")
+    .WithEndpoint(port: 8080, targetPort: 80, name: "http");
 
 // Cache - Redis
 var redis = builder.AddRedis("redis")
@@ -37,7 +43,7 @@ var rabbitmq = builder.AddRabbitMQ("messaging")
 
 // API Service with development flags
 var apiService = builder.AddProject<Projects.FlightTracker_Api>("api")
-    .WithReference(postgres)
+    .WithReference(flightDb)
     .WithReference(redis)
     .WithReference(rabbitmq)
     .WaitFor(postgres)
@@ -51,21 +57,28 @@ var apiService = builder.AddProject<Projects.FlightTracker_Api>("api")
 
 // Data Ingestion Worker
 builder.AddProject<Projects.FlightTracker_DataIngestion>("data-ingestion")
-    .WithReference(postgres)
+    .WithReference(flightDb)
     .WithReference(redis)
     .WithReference(rabbitmq)
+    .WaitFor(postgres)
+    .WaitFor(redis)
+    .WaitFor(rabbitmq)
     .WithEnvironment("SeedSampleJobs", "true");
 
 // Price Analytics Worker
 builder.AddProject<Projects.FlightTracker_PriceAnalytics>("price-analytics")
-    .WithReference(postgres)
+    .WithReference(flightDb)
     .WithReference(redis)
     .WithReference(rabbitmq)
+    .WaitFor(postgres)
+    .WaitFor(redis)
+    .WaitFor(rabbitmq)
     .WithEnvironment("GenerateSampleAnalytics", "true");
 
 // Frontend - Next.js Application
 var frontend = builder.AddNpmApp("frontend", "../../../frontend", "dev")
     .WithReference(apiService)
+    .WaitFor(apiService)
     .WithHttpEndpoint(port: 3000, env: "PORT")
     .WithEnvironment("NEXT_PUBLIC_API_BASE_URL", apiService.GetEndpoint("https"));
 

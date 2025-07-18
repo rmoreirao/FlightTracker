@@ -31,10 +31,7 @@ public class DatabaseInitializer : IDatabaseInitializer
     {
         _logger.LogInformation("🚀 Initializing development database...");
 
-        // Ensure database exists
-        await _context.Database.EnsureCreatedAsync();
-
-        // Run migrations
+        // Run migrations (this will also ensure database exists)
         if (_options.AutoMigrateOnStartup)
         {
             await MigrateAsync();
@@ -84,16 +81,42 @@ public class DatabaseInitializer : IDatabaseInitializer
 
     public async Task CreateTimescaleHypertablesAsync()
     {
-        _logger.LogInformation("📊 Creating TimescaleDB hypertables...");
+        try
+        {
+            _logger.LogInformation("📊 Creating TimescaleDB hypertables...");
 
-        // Create hypertables for time-series data
-        await _context.Database.ExecuteSqlRawAsync(
-            "SELECT create_hypertable('price_snapshots', 'created_at', if_not_exists => true);");
+            // Check if TimescaleDB extension is available
+            var extensionCheck = await _context.Database.ExecuteSqlRawAsync(
+                "SELECT COUNT(*) FROM pg_extension WHERE extname = 'timescaledb'");
 
-        await _context.Database.ExecuteSqlRawAsync(
-            "SELECT create_hypertable('flight_queries', 'created_at', if_not_exists => true);");
+            if (extensionCheck == 0)
+            {
+                _logger.LogInformation("🔧 TimescaleDB extension not found, creating it...");
+                
+                // Try to create TimescaleDB extension
+                await _context.Database.ExecuteSqlRawAsync(
+                    "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;");
+                
+                _logger.LogInformation("✅ TimescaleDB extension created successfully");
+            }
+            else
+            {
+                _logger.LogInformation("✅ TimescaleDB extension is already available");
+            }
 
-        _logger.LogInformation("✅ TimescaleDB hypertables created successfully");
+            // Create hypertables for time-series data (using quoted table names for EF Core)
+            await _context.Database.ExecuteSqlRawAsync(
+                "SELECT create_hypertable('\"PriceSnapshots\"', 'CreatedAt', if_not_exists => true);");
 
+            await _context.Database.ExecuteSqlRawAsync(
+                "SELECT create_hypertable('\"FlightQueries\"', 'CreatedAt', if_not_exists => true);");
+
+            _logger.LogInformation("✅ TimescaleDB hypertables created successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "⚠️ Could not create TimescaleDB hypertables. Continuing without time-series optimization...");
+            // Don't throw - the application should work without TimescaleDB features
+        }
     }
 }

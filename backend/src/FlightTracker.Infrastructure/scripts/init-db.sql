@@ -2,13 +2,13 @@
 -- This script sets up TimescaleDB and development configurations
 
 -- Enable TimescaleDB extension
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
 -- Enable additional extensions for development
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
--- Create application user if not exists
+-- Create application user if not exists (in addition to the default postgres user)
 DO $$ 
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'flighttracker') THEN
@@ -17,8 +17,9 @@ BEGIN
 END
 $$;
 
--- Grant necessary permissions
+-- Grant necessary permissions to both users
 GRANT ALL PRIVILEGES ON DATABASE flighttracker TO flighttracker;
+GRANT ALL PRIVILEGES ON DATABASE flighttracker TO postgres;
 ALTER USER flighttracker CREATEDB;
 
 -- Development-specific settings for better debugging
