@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using FlightTracker.Domain.Entities;
 using FlightTracker.Domain.Enums;
 using FlightTracker.Domain.ValueObjects;
+using FlightTracker.Infrastructure.Configuration;
 
 namespace FlightTracker.Infrastructure.Services;
 
@@ -13,18 +15,29 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
 {
     private readonly FlightDbContext _context;
     private readonly ILogger<DevelopmentDataSeeder> _logger;
+    private readonly DatabaseOptions _options;
     private readonly Random _random;
 
-    public DevelopmentDataSeeder(FlightDbContext context, ILogger<DevelopmentDataSeeder> logger)
+    public DevelopmentDataSeeder(
+        FlightDbContext context, 
+        ILogger<DevelopmentDataSeeder> logger,
+        IOptions<DatabaseOptions> options)
     {
         _context = context;
         _logger = logger;
+        _options = options.Value;
         _random = new Random(42); // Consistent seed for reproducible data
     }
 
     public async Task SeedAsync()
     {
-        if (await _context.Airports.AnyAsync())
+        // Check if we should force reseed by deleting all data first
+        if (_options.ForceReseedData)
+        {
+            _logger.LogInformation("🗑️ Force reseed enabled - deleting all existing data...");
+            await DeleteAllDataAsync();
+        }
+        else if (await _context.Airports.AnyAsync())
         {
             _logger.LogInformation("📝 Test data already exists, skipping seed");
             return;
@@ -39,6 +52,63 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
         await SeedPriceHistoryAsync();
         
         _logger.LogInformation("✅ Test data seeding completed");
+    }
+
+    private async Task DeleteAllDataAsync()
+    {
+        _logger.LogInformation("🗑️ Deleting all existing data in correct order...");
+
+        // Delete in reverse dependency order to respect foreign key constraints
+        
+        // 1. Delete PriceSnapshots (has FKs to FlightQueries and Airlines)
+        var priceSnapshotsCount = await _context.PriceSnapshots.CountAsync();
+        if (priceSnapshotsCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"PriceSnapshots\"");
+            _logger.LogInformation("🗑️ Deleted {Count} price snapshots", priceSnapshotsCount);
+        }
+
+        // 2. Delete FlightSegments (has FK to Flights)
+        var segmentsCount = await _context.FlightSegments.CountAsync();
+        if (segmentsCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"FlightSegments\"");
+            _logger.LogInformation("🗑️ Deleted {Count} flight segments", segmentsCount);
+        }
+
+        // 3. Delete Flights (has FKs to Airlines and Airports)
+        var flightsCount = await _context.Flights.CountAsync();
+        if (flightsCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"Flights\"");
+            _logger.LogInformation("🗑️ Deleted {Count} flights", flightsCount);
+        }
+
+        // 4. Delete FlightQueries (has FKs to Airports)
+        var queriesCount = await _context.FlightQueries.CountAsync();
+        if (queriesCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"FlightQueries\"");
+            _logger.LogInformation("🗑️ Deleted {Count} flight queries", queriesCount);
+        }
+
+        // 5. Delete Airlines (no dependencies on it now)
+        var airlinesCount = await _context.Airlines.CountAsync();
+        if (airlinesCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"Airlines\"");
+            _logger.LogInformation("🗑️ Deleted {Count} airlines", airlinesCount);
+        }
+
+        // 6. Delete Airports (no dependencies on it now)
+        var airportsCount = await _context.Airports.CountAsync();
+        if (airportsCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"Airports\"");
+            _logger.LogInformation("🗑️ Deleted {Count} airports", airportsCount);
+        }
+
+        _logger.LogInformation("✅ All existing data deleted successfully");
     }
 
     public async Task SeedAirportsAsync()
@@ -59,7 +129,9 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
             new Airport("ATL", "Hartsfield-Jackson Atlanta International", "Atlanta", "United States", 33.6407m, -84.4277m),
             new Airport("MSP", "Minneapolis-St. Paul International", "Minneapolis", "United States", 44.8820m, -93.2218m),
             new Airport("DTW", "Detroit Metropolitan Wayne County", "Detroit", "United States", 42.2162m, -83.3554m),
-            new Airport("PDX", "Portland International", "Portland", "United States", 45.5898m, -122.5951m)
+            new Airport("PDX", "Portland International", "Portland", "United States", 45.5898m, -122.5951m),
+            new Airport("AMS", "Amsterdam Airport Schiphol", "Amsterdam", "Netherlands", 52.3105m, 4.7683m),
+            new Airport("GIG", "Rio de Janeiro-Galeão International Airport", "Rio de Janeiro", "Brazil", -22.8099m, -43.2505m)
         };
 
         _context.Airports.AddRange(airports);
@@ -99,7 +171,12 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
             ("BOS", "MIA"), ("MIA", "BOS"),
             ("DEN", "PHX"), ("PHX", "DEN"),
             ("ATL", "LAS"), ("LAS", "ATL"),
-            ("MSP", "DTW"), ("DTW", "MSP")
+            ("MSP", "DTW"), ("DTW", "MSP"),
+            ("JFK", "AMS"), ("AMS", "JFK"),
+            ("LAX", "AMS"), ("AMS", "LAX"),
+            ("MIA", "GIG"), ("GIG", "MIA"),
+            ("JFK", "GIG"), ("GIG", "JFK"),
+            ("AMS", "GIG"), ("GIG", "AMS")
         };
 
         var airlines = await _context.Airlines.ToListAsync();
@@ -122,7 +199,7 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
         // Generate flights for next 30 days
         for (int day = 0; day < 30; day++)
         {
-            var date = DateTime.Today.AddDays(day);
+            var date = DateTime.UtcNow.Date.AddDays(day);
             
             // 3-5 flights per day on this route
             var flightCount = _random.Next(3, 6);
@@ -130,7 +207,7 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
             for (int i = 0; i < flightCount; i++)
             {
                 var airline = airlines[_random.Next(airlines.Count)];
-                var departureTime = date.AddHours(6 + (i * 4) + _random.Next(-60, 60)); // Spread throughout day
+                var departureTime = DateTime.SpecifyKind(date.AddHours(6 + (i * 4) + _random.Next(-60, 60)), DateTimeKind.Utc); // Spread throughout day
                 var flightDuration = TimeSpan.FromHours(2 + _random.NextDouble() * 4); // 2-6 hour flights
                 var arrivalTime = departureTime.Add(flightDuration);
                 
@@ -166,7 +243,10 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
         {
             ("JFK", "LAX"), ("LAX", "SFO"), ("ORD", "MIA"), 
             ("BOS", "SEA"), ("DFW", "DEN"), ("ATL", "LAS"),
-            ("PHX", "MSP"), ("DTW", "PDX")
+            ("PHX", "MSP"), ("DTW", "PDX"),
+            ("JFK", "AMS"), ("AMS", "JFK"),
+            ("LAX", "AMS"), ("MIA", "GIG"), 
+            ("JFK", "GIG"), ("AMS", "GIG")
         };
 
         foreach (var (origin, destination) in routes)
@@ -174,7 +254,7 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
             // One-way queries
             for (int i = 0; i < 5; i++)
             {
-                var departureDate = DateTime.Today.AddDays(i * 3 + 1);
+                var departureDate = DateTime.UtcNow.Date.AddDays(i * 3 + 1);
                 var query = new FlightQuery(origin, destination, departureDate);
                 
                 // Simulate multiple searches for popular queries
@@ -190,7 +270,7 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
             // Round-trip queries  
             for (int i = 0; i < 3; i++)
             {
-                var departureDate = DateTime.Today.AddDays(i * 7 + 3);
+                var departureDate = DateTime.UtcNow.Date.AddDays(i * 7 + 3);
                 var returnDate = departureDate.AddDays(3 + i);
                 var query = new FlightQuery(origin, destination, departureDate, returnDate);
                 _context.FlightQueries.Add(query);

@@ -22,15 +22,16 @@ var postgres = builder.AddPostgres("postgres", password: postgresPassword)
     .WithImage("timescale/timescaledb", "latest-pg17")
     .WithDataVolume()
     .WithEnvironment("POSTGRES_DB", "flighttracker")
-    .WithEnvironment("POSTGRES_SHARED_PRELOAD_LIBRARIES", "timescaledb");
+    .WithEnvironment("POSTGRES_SHARED_PRELOAD_LIBRARIES", "timescaledb")
+    .WithPgAdmin(pgAdmin => pgAdmin.WithHostPort(5050));
 
 var flightDb = postgres.AddDatabase("flighttracker");
 
-// Add pgAdmin for database management
-var pgAdmin = builder.AddContainer("pgadmin", "dpage/pgadmin4", "latest")
-    .WithEnvironment("PGADMIN_DEFAULT_EMAIL", "admin@admin.com")
-    .WithEnvironment("PGADMIN_DEFAULT_PASSWORD", "admin")
-    .WithEndpoint(port: 8080, targetPort: 80, name: "http");
+// // Add pgAdmin for database management
+// var pgAdmin = builder.AddContainer("pgadmin", "dpage/pgadmin4", "latest")
+//     .WithEnvironment("PGADMIN_DEFAULT_EMAIL", "admin@admin.com")
+//     .WithEnvironment("PGADMIN_DEFAULT_PASSWORD", "admin")
+//     .WithEndpoint(port: 8080, targetPort: 80, name: "http");
 
 // Cache - Redis
 var redis = builder.AddRedis("redis")
@@ -50,8 +51,8 @@ var apiService = builder.AddProject<Projects.FlightTracker_Api>("api")
     .WaitFor(redis)
     .WaitFor(rabbitmq)
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
-    .WithEnvironment("AutoMigrateOnStartup", "true")
-    .WithEnvironment("SeedTestDataOnStartup", "true")
+    .WithEnvironment("DatabaseOptions__AutoMigrateOnStartup", "true")
+    .WithEnvironment("DatabaseOptions__SeedTestDataOnStartup", "true")
     .WithEnvironment("USE_REAL_REPOSITORIES", "true")
     .WithExternalHttpEndpoints();
 

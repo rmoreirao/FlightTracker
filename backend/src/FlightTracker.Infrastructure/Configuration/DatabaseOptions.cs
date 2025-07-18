@@ -18,6 +18,12 @@ public class DatabaseOptions
     public bool SeedTestDataOnStartup { get; set; } = false;
 
     /// <summary>
+    /// Whether to force re-seeding by deleting all existing data first
+    /// Only applies when SeedTestDataOnStartup is true
+    /// </summary>
+    public bool ForceReseedData { get; set; } = false;
+
+    /// <summary>
     /// Whether to enable sensitive data logging for Entity Framework
     /// </summary>
     public bool EnableSensitiveDataLogging { get; set; } = false;

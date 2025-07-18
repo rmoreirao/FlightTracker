@@ -105,8 +105,29 @@ public class DatabaseInitializer : IDatabaseInitializer
             }
 
             // Create hypertables for time-series data (using quoted table names for EF Core)
+            // Note: TimescaleDB requires removing foreign key constraints before creating hypertables
+            
+            // Drop foreign key constraints for PriceSnapshots table
             await _context.Database.ExecuteSqlRawAsync(
-                "SELECT create_hypertable('\"PriceSnapshots\"', 'CreatedAt', if_not_exists => true);");
+                "ALTER TABLE \"PriceSnapshots\" DROP CONSTRAINT IF EXISTS \"FK_PriceSnapshots_Airlines_AirlineCode\";");
+            await _context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"PriceSnapshots\" DROP CONSTRAINT IF EXISTS \"FK_PriceSnapshots_FlightQueries_QueryId\";");
+            
+            // Drop foreign key constraints for FlightQueries table
+            await _context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"FlightQueries\" DROP CONSTRAINT IF EXISTS \"FK_FlightQueries_Airports_DestinationCode\";");
+            await _context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"FlightQueries\" DROP CONSTRAINT IF EXISTS \"FK_FlightQueries_Airports_OriginCode\";");
+            
+            // Drop primary key constraint for FlightQueries table (TimescaleDB requirement)
+            await _context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"FlightQueries\" DROP CONSTRAINT IF EXISTS \"PK_FlightQueries\";");
+            
+            _logger.LogInformation("🔗 Removed foreign key and primary key constraints for TimescaleDB compatibility");
+
+            // Create hypertables
+            await _context.Database.ExecuteSqlRawAsync(
+                "SELECT create_hypertable('\"PriceSnapshots\"', 'CollectedAt', if_not_exists => true);");
 
             await _context.Database.ExecuteSqlRawAsync(
                 "SELECT create_hypertable('\"FlightQueries\"', 'CreatedAt', if_not_exists => true);");
