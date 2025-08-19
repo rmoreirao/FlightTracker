@@ -33,12 +33,12 @@ public class SearchFlightsQueryHandler : IRequestHandler<SearchFlightsQuery, Sea
         var cacheKey = GenerateCacheKey(request);
         
         // Try get from cache first
-        var cachedResult = await _cacheService.GetAsync<SearchFlightsResult>(cacheKey, cancellationToken);
-        if (cachedResult != null)
-        {
-            _logger.LogInformation("Cache hit for flight search {CacheKey}", cacheKey);
-            return cachedResult;
-        }
+        //var cachedResult = await _cacheService.GetAsync<SearchFlightsResult>(cacheKey, cancellationToken);
+        //if (cachedResult != null)
+        //{
+        //    _logger.LogInformation("Cache hit for flight search {CacheKey}", cacheKey);
+        //    return cachedResult;
+        //}
 
         _logger.LogInformation("Cache miss for flight search {CacheKey}", cacheKey);
         

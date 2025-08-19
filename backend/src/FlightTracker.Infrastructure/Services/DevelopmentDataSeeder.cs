@@ -203,20 +203,20 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
             
             // 3-5 flights per day on this route
             var flightCount = _random.Next(3, 6);
-            
+
             for (int i = 0; i < flightCount; i++)
             {
                 var airline = airlines[_random.Next(airlines.Count)];
                 var departureTime = DateTime.SpecifyKind(date.AddHours(6 + (i * 4) + _random.Next(-60, 60)), DateTimeKind.Utc); // Spread throughout day
                 var flightDuration = TimeSpan.FromHours(2 + _random.NextDouble() * 4); // 2-6 hour flights
                 var arrivalTime = departureTime.Add(flightDuration);
-                
+
                 var flightNumber = $"{airline.Code}{1000 + _random.Next(1, 9999)}";
-                
+
                 // Generate a realistic price
                 var price = new Money(200 + (decimal)(_random.NextDouble() * 800), "USD");
                 var cabinClass = _random.Next(10) < 8 ? CabinClass.Economy : CabinClass.Business; // 80% economy
-                
+
                 var flight = new Flight(
                     flightNumber,
                     airline.Code,
@@ -228,8 +228,24 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
                     price,
                     cabinClass
                 );
-                
+
+                flight.AddSegment(
+                    new FlightSegment(
+                        flightNumber,
+                        airline.Code,
+                        originAirport,
+                        destinationAirport,
+                        departureTime,
+                        arrivalTime,
+                        1,
+                        null,
+                        FlightStatus.Scheduled
+                        )
+                );
+
                 _context.Flights.Add(flight);
+                
+
             }
         }
         

@@ -27,12 +27,6 @@ var postgres = builder.AddPostgres("postgres", password: postgresPassword)
 
 var flightDb = postgres.AddDatabase("flighttracker");
 
-// // Add pgAdmin for database management
-// var pgAdmin = builder.AddContainer("pgadmin", "dpage/pgadmin4", "latest")
-//     .WithEnvironment("PGADMIN_DEFAULT_EMAIL", "admin@admin.com")
-//     .WithEnvironment("PGADMIN_DEFAULT_PASSWORD", "admin")
-//     .WithEndpoint(port: 8080, targetPort: 80, name: "http");
-
 // Cache - Redis
 var redis = builder.AddRedis("redis")
     .WithDataVolume();
@@ -53,7 +47,6 @@ var apiService = builder.AddProject<Projects.FlightTracker_Api>("api")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
     .WithEnvironment("DatabaseOptions__AutoMigrateOnStartup", "true")
     .WithEnvironment("DatabaseOptions__SeedTestDataOnStartup", "true")
-    .WithEnvironment("USE_REAL_REPOSITORIES", "true")
     .WithExternalHttpEndpoints();
 
 // Data Ingestion Worker

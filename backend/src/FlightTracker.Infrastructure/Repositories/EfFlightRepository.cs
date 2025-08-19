@@ -47,6 +47,8 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                     .ThenInclude(s => s.Destination)
                 .Include(f => f.Segments)
                     .ThenInclude(s => s.Airline)
+                .Include(f => f.Origin)
+                .Include(f => f.Destination)
                 .Where(f => f.Segments.Any(s => 
                     s.OriginCode == originCode && 
                     s.DestinationCode == destinationCode &&
