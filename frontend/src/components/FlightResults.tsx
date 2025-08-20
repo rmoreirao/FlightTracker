@@ -1,18 +1,40 @@
 'use client';
 
-import { FlightOption } from '@/lib/schemas';
-import { ClockIcon, ArrowRightIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { FlightOption, SortOption, SortDirection, PaginationInfo } from '@/lib/schemas';
+import { ClockIcon, ArrowRightIcon, ArrowTopRightOnSquareIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { formatPrice, formatDuration } from '@/lib/api';
+import { Pagination } from './Pagination';
 
 interface FlightResultsProps {
   results: FlightOption[];
   lastUpdated: string;
-  onSort: (sortBy: 'price' | 'duration' | 'stops') => void;
-  currentSort: 'price' | 'duration' | 'stops';
+  
+  // Sorting props
+  sortBy: SortOption;
+  sortDirection: SortDirection;
+  onSort: (sortBy: SortOption, direction?: SortDirection) => void;
+  isSorting: boolean;
+  
+  // Pagination props
+  paginationInfo: PaginationInfo;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  isPaging: boolean;
 }
 
-export function FlightResults({ results, lastUpdated, onSort, currentSort }: FlightResultsProps) {
+export function FlightResults({ 
+  results, 
+  lastUpdated, 
+  sortBy,
+  sortDirection,
+  onSort, 
+  isSorting,
+  paginationInfo,
+  onPageChange,
+  onPageSizeChange,
+  isPaging
+}: FlightResultsProps) {
   const formatStops = (stops: number) => {
     if (stops === 0) return 'Nonstop';
     if (stops === 1) return '1 Stop';
@@ -36,7 +58,41 @@ export function FlightResults({ results, lastUpdated, onSort, currentSort }: Fli
     return `${hours}h ${minutes}m`;
   };
 
-  if (results.length === 0) {
+  const SortButton = ({ 
+    option, 
+    label, 
+    className = "" 
+  }: { 
+    option: SortOption; 
+    label: string; 
+    className?: string;
+  }) => {
+    const isActive = sortBy === option;
+    const isLoading = isSorting && isActive;
+    
+    return (
+      <button
+        onClick={() => onSort(option)}
+        disabled={isSorting}
+        className={`flex items-center gap-1 px-3 py-2 text-sm rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+          isActive
+            ? 'bg-primary-500 text-white'
+            : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
+        } ${className}`}
+      >
+        {label}
+        {isLoading ? (
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        ) : isActive ? (
+          sortDirection === 'asc' ? 
+            <ArrowUpIcon className="w-4 h-4" /> : 
+            <ArrowDownIcon className="w-4 h-4" />
+        ) : null}
+      </button>
+    );
+  };
+
+  if (paginationInfo.totalResults === 0) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-100 rounded-lg shadow-sm p-8 text-center">
         <div className="text-neutral-500 mb-4">
@@ -51,55 +107,40 @@ export function FlightResults({ results, lastUpdated, onSort, currentSort }: Fli
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header with sort options and last updated */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-neutral-100 dark:bg-neutral-100 rounded-lg shadow-sm p-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-neutral-100 dark:bg-neutral-100 rounded-lg shadow-sm p-4">
         <div className="flex items-center text-sm text-neutral-600 dark:text-neutral-600">
           <ClockIcon className="w-4 h-4 mr-1" />
           Prices updated {format(new Date(lastUpdated), 'MMM d, yyyy \'at\' HH:mm')}
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-neutral-700 dark:text-neutral-700 mr-2">Sort by:</span>
-          <button
-            onClick={() => onSort('price')}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              currentSort === 'price'
-                ? 'bg-primary-500 text-white'
-                : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
-            }`}
-          >
-            Price
-          </button>
-          <button
-            onClick={() => onSort('duration')}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              currentSort === 'duration'
-                ? 'bg-primary-500 text-white'
-                : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
-            }`}
-          >
-            Duration
-          </button>
-          <button
-            onClick={() => onSort('stops')}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              currentSort === 'stops'
-                ? 'bg-primary-500 text-white'
-                : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
-            }`}
-          >
-            Stops
-          </button>
+          <SortButton option="departureTime" label="Departure" />
+          <SortButton option="arrivalTime" label="Arrival" />
+          <SortButton option="duration" label="Duration" />
+          <SortButton option="price" label="Price" />
+          <SortButton option="airline" label="Airline" />
         </div>
       </div>
+
+      {/* Top Pagination */}
+      <Pagination
+        paginationInfo={paginationInfo}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        isLoading={isPaging}
+      />
 
       {/* Results */}
       <div className="space-y-4">
         {results.map((flight) => (
           <div
             key={flight.id}
-            className="bg-neutral-100 dark:bg-neutral-100 rounded-lg shadow-sm p-4 md:p-6 hover:shadow-md transition-shadow"
+            className={`bg-neutral-100 dark:bg-neutral-100 rounded-lg shadow-sm p-4 md:p-6 hover:shadow-md transition-all ${
+              (isSorting || isPaging) ? 'opacity-75' : ''
+            }`}
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               {/* Flight Info */}
@@ -178,6 +219,26 @@ export function FlightResults({ results, lastUpdated, onSort, currentSort }: Fli
           </div>
         ))}
       </div>
+
+      {/* Bottom Pagination */}
+      <Pagination
+        paginationInfo={paginationInfo}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        isLoading={isPaging}
+      />
+
+      {/* Loading overlay */}
+      {(isSorting || isPaging) && (
+        <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
+            <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-neutral-700">
+              {isSorting ? 'Sorting results...' : 'Loading page...'}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

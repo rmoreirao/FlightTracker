@@ -108,6 +108,43 @@ export interface FlightSearchResults {
   searchDuration: string;
 }
 
+// Search state management types
+export interface SearchState {
+  sortBy: SortOption;
+  sortDirection: SortDirection;
+  page: number;
+  pageSize: number;
+}
+
+export type SortOption = 'departureTime' | 'arrivalTime' | 'duration' | 'price' | 'airline';
+export type SortDirection = 'asc' | 'desc';
+
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  totalResults: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+// Utility function to calculate pagination info
+export const calculatePaginationInfo = (
+  totalResults: number,
+  currentPage: number,
+  pageSize: number
+): PaginationInfo => {
+  const totalPages = Math.ceil(totalResults / pageSize);
+  return {
+    currentPage: Math.max(1, currentPage),
+    totalPages: Math.max(1, totalPages),
+    pageSize,
+    totalResults,
+    hasNextPage: currentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+  };
+};
+
 // Utility function to convert API Flight to FlightOption
 export const convertApiFlightToFlightOption = (flight: Flight): FlightOption => {
   return {

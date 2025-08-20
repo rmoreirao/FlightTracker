@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using FlightTracker.Api.Application.Queries;
 using FlightTracker.Api.Application.DTOs;
+using FlightTracker.Domain.ValueObjects;
+using FlightTracker.Domain.Enums;
 using FluentValidation;
 
 namespace FlightTracker.Api.Controllers;
@@ -33,6 +35,10 @@ public class FlightsController : ControllerBase
     /// <param name="adults">Number of adult passengers (18+ years, minimum 1, maximum 9)</param>
     /// <param name="children">Number of child passengers (2-17 years, maximum 8)</param>
     /// <param name="infants">Number of infant passengers (0-2 years, maximum adults count)</param>
+    /// <param name="sortBy">Sort field: Price, Duration, Stops, DepartureTime, ArrivalTime, Airline</param>
+    /// <param name="sortOrder">Sort order: Ascending, Descending</param>
+    /// <param name="page">Page number for pagination (1-based, default: 1)</param>
+    /// <param name="pageSize">Number of results per page (1-100, default: 20)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Flight search results with available flights and pricing information</returns>
     /// <response code="200">Successfully retrieved flight search results</response>
@@ -53,6 +59,10 @@ public class FlightsController : ControllerBase
         [FromQuery] int adults = 1,
         [FromQuery] int children = 0,
         [FromQuery] int infants = 0,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortOrder = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         try
@@ -63,6 +73,20 @@ public class FlightsController : ControllerBase
                     .ToArray()
                 : null;
 
+            // Parse sorting parameters
+            var parsedSortBy = ParseSortBy(sortBy);
+            var parsedSortOrder = ParseSortOrder(sortOrder);
+
+            // Validate and correct pagination parameters
+            var validPage = Math.Max(1, page);
+            var validPageSize = Math.Max(1, Math.Min(100, pageSize));
+
+            var searchOptions = FlightSearchOptions.Create(
+                sortBy: parsedSortBy,
+                sortOrder: parsedSortOrder,
+                page: validPage,
+                pageSize: validPageSize);
+
             var query = new SearchFlightsQuery(
                 originCode?.ToUpperInvariant() ?? string.Empty,
                 destinationCode?.ToUpperInvariant() ?? string.Empty,
@@ -71,7 +95,8 @@ public class FlightsController : ControllerBase
                 cabinArray,
                 adults,
                 children,
-                infants);
+                infants,
+                searchOptions);
 
             var result = await _mediator.Send(query, cancellationToken);
             return Ok(result);
@@ -189,5 +214,40 @@ public class FlightsController : ControllerBase
                     Detail = "An unexpected error occurred. Please try again later."
                 });
         }
+    }
+
+    /// <summary>
+    /// Parses string sortBy parameter to FlightSortBy enum
+    /// </summary>
+    private static FlightSortBy ParseSortBy(string? sortBy)
+    {
+        if (string.IsNullOrWhiteSpace(sortBy))
+            return FlightSortBy.DepartureTime;
+
+        return sortBy.ToLowerInvariant() switch
+        {
+            "departuretime" => FlightSortBy.DepartureTime,
+            "arrivaltime" => FlightSortBy.ArrivalTime,
+            "duration" => FlightSortBy.Duration,
+            "price" => FlightSortBy.Price,
+            "airline" => FlightSortBy.Airline,
+            _ => FlightSortBy.DepartureTime
+        };
+    }
+
+    /// <summary>
+    /// Parses string sortOrder parameter to SortOrder enum
+    /// </summary>
+    private static SortOrder ParseSortOrder(string? sortOrder)
+    {
+        if (string.IsNullOrWhiteSpace(sortOrder))
+            return SortOrder.Ascending;
+
+        return sortOrder.ToLowerInvariant() switch
+        {
+            "asc" => SortOrder.Ascending,
+            "desc" => SortOrder.Descending,
+            _ => SortOrder.Ascending
+        };
     }
 }

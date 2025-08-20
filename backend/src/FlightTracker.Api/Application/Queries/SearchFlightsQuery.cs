@@ -2,6 +2,8 @@ using FluentValidation;
 using MediatR;
 using FlightTracker.Api.Application.DTOs;
 using FlightTracker.Api.Application.Validators;
+using FlightTracker.Domain.ValueObjects;
+using FlightTracker.Domain.Enums;
 
 namespace FlightTracker.Api.Application.Queries;
 
@@ -16,7 +18,14 @@ public record SearchFlightsQuery(
     string[]? Cabins = null,
     int Adults = 1,
     int Children = 0,
-    int Infants = 0) : IRequest<SearchFlightsResult>;
+    int Infants = 0,
+    FlightSearchOptions? SearchOptions = null) : IRequest<SearchFlightsResult>
+{
+    /// <summary>
+    /// Gets search options with defaults if not provided
+    /// </summary>
+    public FlightSearchOptions Options => SearchOptions ?? FlightSearchOptions.Default;
+}
 
 /// <summary>
 /// Validator for SearchFlightsQuery using custom validation extensions
@@ -64,6 +73,11 @@ public class SearchFlightsQueryValidator : AbstractValidator<SearchFlightsQuery>
         // Validate travel duration is reasonable
         RuleFor(x => x)
             .MustHaveReasonableTravelDuration(x => x.DepartureDate, x => x.ReturnDate);
+
+        // Validate search options if provided
+        RuleFor(x => x.SearchOptions)
+            .Must(options => options == null || options.IsValid())
+            .WithMessage("Invalid search options provided");
     }
 
     private static bool IsValidCabin(string cabin)

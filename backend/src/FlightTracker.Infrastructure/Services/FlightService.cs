@@ -1,6 +1,7 @@
 using FlightTracker.Domain.Entities;
 using FlightTracker.Domain.Repositories;
 using FlightTracker.Domain.Services;
+using FlightTracker.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace FlightTracker.Infrastructure.Services;
@@ -29,6 +30,7 @@ public class FlightService : IFlightService
         string destinationCode,
         DateTime departureDate,
         DateTime? returnDate,
+        FlightSearchOptions? searchOptions = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Searching flights from {Origin} to {Destination} on {Date}",
@@ -38,7 +40,7 @@ public class FlightService : IFlightService
         {
             // Search for outbound flights
             var outboundFlights = await _flightRepository.SearchAsync(
-                originCode, destinationCode, departureDate, null, cancellationToken);
+                originCode, destinationCode, departureDate, searchOptions, cancellationToken);
 
             _logger.LogInformation("Found {Count} outbound flights", outboundFlights.Count);
 

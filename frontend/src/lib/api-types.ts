@@ -73,6 +73,19 @@ export interface SearchFlightsResult {
   searchDuration: string;
 }
 
+// Frontend sorting and pagination types
+export type SortOption = 'departureTime' | 'arrivalTime' | 'duration' | 'price' | 'airline';
+export type SortDirection = 'asc' | 'desc';
+
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  totalResults: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export interface FlightSearchParams {
   originCode?: string;
   destinationCode?: string;
@@ -82,6 +95,10 @@ export interface FlightSearchParams {
   adults?: number;
   children?: number;
   infants?: number;
+  sortBy?: string;
+  sortOrder?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface HealthStatus {

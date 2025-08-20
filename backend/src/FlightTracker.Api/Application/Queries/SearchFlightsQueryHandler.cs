@@ -55,6 +55,7 @@ public class SearchFlightsQueryHandler : IRequestHandler<SearchFlightsQuery, Sea
                 request.DestinationCode,
                 request.DepartureDate,
                 request.ReturnDate,
+                request.SearchOptions,
                 cancellationToken);
 
             stopwatch.Stop();

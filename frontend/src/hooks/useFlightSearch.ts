@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { flightApi, ApiError } from '@/lib/api';
 import { 
   FlightSearchFormValues, 
   FlightSearchResults, 
   convertApiFlightToFlightOption,
-  convertCabinClassToApi 
+  convertCabinClassToApi,
+  SearchState,
+  SortOption,
+  SortDirection,
+  PaginationInfo,
+  calculatePaginationInfo
 } from '@/lib/schemas';
 import { FlightSearchParams } from '@/lib/api-types';
 
@@ -15,20 +21,95 @@ interface UseFlightSearchResult {
   searchFlights: (formData: FlightSearchFormValues) => Promise<void>;
   clearResults: () => void;
   clearError: () => void;
+  
+  // Search state
+  searchState: SearchState;
+  lastSearchParams: FlightSearchFormValues | null;
+  
+  // Pagination info
+  paginationInfo: PaginationInfo | null;
+  
+  // Sort and pagination methods
+  setSorting: (sortBy: SortOption, direction?: SortDirection) => Promise<void>;
+  setPage: (page: number) => Promise<void>;
+  setPageSize: (size: number) => Promise<void>;
+  
+  // Loading states
+  isSorting: boolean;
+  isPaging: boolean;
 }
 
+const DEFAULT_SEARCH_STATE: SearchState = {
+  sortBy: 'departureTime',
+  sortDirection: 'asc',
+  page: 1,
+  pageSize: 20,
+};
+
 export const useFlightSearch = (): UseFlightSearchResult => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const [searchResults, setSearchResults] = useState<FlightSearchResults | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSearchParams, setLastSearchParams] = useState<FlightSearchFormValues | null>(null);
+  const [isSorting, setIsSorting] = useState(false);
+  const [isPaging, setIsPaging] = useState(false);
+  
+  // Initialize search state from URL or defaults
+  const initializeSearchState = (): SearchState => {
+    return {
+      sortBy: (searchParams.get('sortBy') as SortOption) || DEFAULT_SEARCH_STATE.sortBy,
+      sortDirection: (searchParams.get('sortDirection') as SortDirection) || DEFAULT_SEARCH_STATE.sortDirection,
+      page: parseInt(searchParams.get('page') || '1'),
+      pageSize: parseInt(searchParams.get('pageSize') || '20'),
+    };
+  };
+  
+  const [searchState, setSearchState] = useState<SearchState>(initializeSearchState);
+  
+  // Calculate pagination info
+  const paginationInfo = searchResults ? calculatePaginationInfo(
+    searchResults.totalResults,
+    searchState.page,
+    searchState.pageSize
+  ) : null;
 
-  const searchFlights = async (formData: FlightSearchFormValues) => {
-    setIsLoading(true);
-    setError(null);
+  // Update URL with current search state
+  const updateUrlParams = useCallback((newState: Partial<SearchState>, formData?: FlightSearchFormValues) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Update search state params
+    if (newState.sortBy) params.set('sortBy', newState.sortBy);
+    if (newState.sortDirection) params.set('sortDirection', newState.sortDirection);
+    if (newState.page) params.set('page', newState.page.toString());
+    if (newState.pageSize) params.set('pageSize', newState.pageSize.toString());
+    
+    // Update search form params if provided
+    if (formData) {
+      params.set('origin', formData.originCode);
+      params.set('destination', formData.destinationCode);
+      params.set('departure', formData.departureDate);
+      if (formData.returnDate) params.set('return', formData.returnDate);
+      params.set('cabin', formData.cabinClass);
+      params.set('adults', formData.adults.toString());
+      params.set('children', formData.children.toString());
+      params.set('infants', formData.infants.toString());
+    }
+    
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
 
+  const performSearch = async (
+    formData: FlightSearchFormValues, 
+    searchStateOverrides: Partial<SearchState> = {}
+  ): Promise<void> => {
+    const currentSearchState = { ...searchState, ...searchStateOverrides };
+    
     try {
       // Convert form data to API parameters
-      const searchParams: FlightSearchParams = {
+      const searchApiParams: FlightSearchParams = {
         originCode: formData.originCode,
         destinationCode: formData.destinationCode,
         departureDate: formData.departureDate,
@@ -37,9 +118,13 @@ export const useFlightSearch = (): UseFlightSearchResult => {
         adults: formData.adults,
         children: formData.children,
         infants: formData.infants,
+        sortBy: currentSearchState.sortBy,
+        sortOrder: currentSearchState.sortDirection,
+        page: currentSearchState.page,
+        pageSize: currentSearchState.pageSize,
       };
 
-      const apiResult = await flightApi.searchFlights(searchParams);
+      const apiResult = await flightApi.searchFlights(searchApiParams);
 
       // Convert API response to frontend format
       const flightOptions = apiResult.flights?.map(convertApiFlightToFlightOption) || [];
@@ -53,6 +138,14 @@ export const useFlightSearch = (): UseFlightSearchResult => {
       };
 
       setSearchResults(results);
+      setLastSearchParams(formData);
+      
+      // Update search state
+      setSearchState(currentSearchState);
+      
+      // Update URL
+      updateUrlParams(currentSearchState, formData);
+      
     } catch (err) {
       let errorMessage = 'An unexpected error occurred while searching for flights.';
 
@@ -77,14 +170,73 @@ export const useFlightSearch = (): UseFlightSearchResult => {
 
       setError(errorMessage);
       console.error('Flight search error:', err);
+    }
+  };
+
+  const searchFlights = async (formData: FlightSearchFormValues): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Reset to first page for new searches
+      await performSearch(formData, { page: 1 });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const setSorting = async (sortBy: SortOption, direction?: SortDirection): Promise<void> => {
+    if (!lastSearchParams) return;
+    
+    setIsSorting(true);
+    setError(null);
+    
+    try {
+      const newDirection = direction || (searchState.sortBy === sortBy && searchState.sortDirection === 'asc' ? 'desc' : 'asc');
+      await performSearch(lastSearchParams, { 
+        sortBy, 
+        sortDirection: newDirection,
+        page: 1 // Reset to first page when sorting
+      });
+    } finally {
+      setIsSorting(false);
+    }
+  };
+
+  const setPage = async (page: number): Promise<void> => {
+    if (!lastSearchParams) return;
+    
+    setIsPaging(true);
+    setError(null);
+    
+    try {
+      await performSearch(lastSearchParams, { page });
+    } finally {
+      setIsPaging(false);
+    }
+  };
+
+  const setPageSize = async (pageSize: number): Promise<void> => {
+    if (!lastSearchParams) return;
+    
+    setIsPaging(true);
+    setError(null);
+    
+    try {
+      await performSearch(lastSearchParams, { 
+        pageSize,
+        page: 1 // Reset to first page when changing page size
+      });
+    } finally {
+      setIsPaging(false);
     }
   };
 
   const clearResults = () => {
     setSearchResults(null);
     setError(null);
+    setLastSearchParams(null);
+    setSearchState(DEFAULT_SEARCH_STATE);
   };
 
   const clearError = () => {
@@ -98,5 +250,13 @@ export const useFlightSearch = (): UseFlightSearchResult => {
     searchFlights,
     clearResults,
     clearError,
+    searchState,
+    lastSearchParams,
+    paginationInfo,
+    setSorting,
+    setPage,
+    setPageSize,
+    isSorting,
+    isPaging,
   };
 };

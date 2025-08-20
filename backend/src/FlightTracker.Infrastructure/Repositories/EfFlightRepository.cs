@@ -1,5 +1,7 @@
 using FlightTracker.Domain.Entities;
+using FlightTracker.Domain.Enums;
 using FlightTracker.Domain.Repositories;
+using FlightTracker.Domain.ValueObjects;
 using FlightTracker.Infrastructure.Repositories.Base;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -22,7 +24,7 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
         string originCode,
         string destinationCode,
         DateTime departureDate,
-        DateTime? returnDate = null,
+        FlightSearchOptions? searchOptions = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -31,14 +33,6 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
             var departureDateUtc = departureDate.Kind == DateTimeKind.Unspecified 
                 ? DateTime.SpecifyKind(departureDate, DateTimeKind.Utc) 
                 : departureDate.ToUniversalTime();
-            
-            DateTime? returnDateUtc = null;
-            if (returnDate.HasValue)
-            {
-                returnDateUtc = returnDate.Value.Kind == DateTimeKind.Unspecified
-                    ? DateTime.SpecifyKind(returnDate.Value, DateTimeKind.Utc)
-                    : returnDate.Value.ToUniversalTime();
-            }
 
             var query = _dbSet
                 .Include(f => f.Segments)
@@ -55,18 +49,30 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                     s.DepartureTime.Date == departureDateUtc.Date))
                 .AsNoTracking();
 
-            if (returnDateUtc.HasValue)
+            // Apply sorting if provided
+            if (searchOptions?.SortBy != null)
             {
-                query = query.Where(f => f.Segments.Any(s => 
-                    s.OriginCode == destinationCode && 
-                    s.DestinationCode == originCode &&
-                    s.DepartureTime.Date == returnDateUtc.Value.Date));
+                query = ApplySorting(query, searchOptions.SortBy, searchOptions.SortOrder);
+            }
+            else
+            {
+                // Default sorting by departure time
+                query = query.OrderBy(f => f.Segments.Min(s => s.DepartureTime));
             }
 
-            var flights = await query
-                .OrderBy(f => f.Segments.Min(s => s.DepartureTime))
-                .Take(100) // Reasonable limit for performance
-                .ToListAsync(cancellationToken);
+            // Apply pagination if provided
+            if (searchOptions?.Page > 0 && searchOptions?.PageSize > 0)
+            {
+                var skip = (searchOptions.Page - 1) * searchOptions.PageSize;
+                query = query.Skip(skip).Take(searchOptions.PageSize);
+            }
+            else
+            {
+                // Default limit for performance
+                query = query.Take(100);
+            }
+
+            var flights = await query.ToListAsync(cancellationToken);
 
             _logger.LogDebug("Flight search for {Origin}-{Destination} on {DepartureDate} returned {Count} results",
                 originCode, destinationCode, departureDateUtc, flights.Count);
@@ -79,6 +85,34 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                 originCode, destinationCode);
             throw;
         }
+    }
+
+    private IQueryable<Flight> ApplySorting(IQueryable<Flight> query, FlightSortBy sortBy, SortOrder sortOrder)
+    {
+        return sortBy switch
+        {
+            FlightSortBy.DepartureTime => sortOrder == SortOrder.Ascending
+                ? query.OrderBy(f => f.Segments.Min(s => s.DepartureTime))
+                : query.OrderByDescending(f => f.Segments.Min(s => s.DepartureTime)),
+            
+            FlightSortBy.ArrivalTime => sortOrder == SortOrder.Ascending
+                ? query.OrderBy(f => f.Segments.Max(s => s.ArrivalTime))
+                : query.OrderByDescending(f => f.Segments.Max(s => s.ArrivalTime)),
+            
+            FlightSortBy.Duration => sortOrder == SortOrder.Ascending
+                ? query.OrderBy(f => f.Duration)
+                : query.OrderByDescending(f => f.Duration),
+            
+            FlightSortBy.Price => sortOrder == SortOrder.Ascending
+                ? query.OrderBy(f => f.Price.Amount)
+                : query.OrderByDescending(f => f.Price.Amount),
+            
+            FlightSortBy.Airline => sortOrder == SortOrder.Ascending
+                ? query.OrderBy(f => f.Segments.First().AirlineCode)
+                : query.OrderByDescending(f => f.Segments.First().AirlineCode),
+            
+            _ => query.OrderBy(f => f.Segments.Min(s => s.DepartureTime))
+        };
     }
 
     public override async Task<Flight?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

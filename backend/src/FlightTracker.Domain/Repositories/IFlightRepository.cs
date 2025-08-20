@@ -1,4 +1,5 @@
 using FlightTracker.Domain.Entities;
+using FlightTracker.Domain.ValueObjects;
 
 namespace FlightTracker.Domain.Repositories;
 
@@ -14,7 +15,7 @@ public interface IFlightRepository
         string originCode,
         string destinationCode,
         DateTime departureDate,
-        DateTime? returnDate = null,
+        FlightSearchOptions? searchOptions = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
