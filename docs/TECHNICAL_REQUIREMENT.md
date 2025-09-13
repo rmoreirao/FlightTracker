@@ -16,14 +16,14 @@
 
 ```
  ┌────────────┐  HTTPS  ┌─────────────────────────┐
- │  Browser   │ ─────── ►  Next.js 14 (Vercel OR │
- └────────────┘         │  Azure Static Web Apps) │
+ │  Browser   │ ─────── ►  Next.js 14             │
+ └────────────┘         │                         │
                         └────────▲────────────────┘
                                  │ GraphQL/REST
                                  ▼
                      ┌─────────────────────────────┐
                      │ ASP.NET Core API (.NET 9,   │
-                     │ C# 9) – Azure App Service   │
+                     │ C# 9) –                     │
                      └──────────┬──────────────────┘
                                 │ CQRS / MediatR
    ┌─────────────────┐  Azure   │
