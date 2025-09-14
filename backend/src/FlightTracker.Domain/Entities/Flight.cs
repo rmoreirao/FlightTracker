@@ -40,25 +40,25 @@ public class Flight
     {
         if (string.IsNullOrWhiteSpace(flightNumber))
             throw new ArgumentException("Flight number is required", nameof(flightNumber));
-        
+
         if (string.IsNullOrWhiteSpace(airlineCode))
             throw new ArgumentException("Airline code is required", nameof(airlineCode));
-        
+
         if (string.IsNullOrWhiteSpace(airlineName))
             throw new ArgumentException("Airline name is required", nameof(airlineName));
-        
+
         if (origin == null)
             throw new ArgumentNullException(nameof(origin));
-        
+
         if (destination == null)
             throw new ArgumentNullException(nameof(destination));
-        
+
         if (origin.Code == destination.Code)
             throw new ArgumentException("Origin and destination cannot be the same");
-        
+
         if (arrivalTime <= departureTime)
             throw new ArgumentException("Arrival time must be after departure time");
-        
+
         if (price == null)
             throw new ArgumentNullException(nameof(price));
 
@@ -82,7 +82,7 @@ public class Flight
     {
         if (segment == null)
             throw new ArgumentNullException(nameof(segment));
-        
+
         Segments.Add(segment);
     }
 
