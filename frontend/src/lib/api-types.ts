@@ -173,3 +173,57 @@ export const CabinClassValues: Record<string, CabinClass> = {
   'business': CabinClass.Business,
   'first': CabinClass.First,
 };
+
+// ================= Itinerary Types =================
+export interface ItineraryLeg {
+  sequence: number;
+  flightNumber: string;
+  airlineCode: string;
+  origin: string;
+  destination: string;
+  departureUtc: string;
+  arrivalUtc: string;
+  durationMinutes: number;
+  cabinClass: string;
+  priceAmount: number;
+  priceCurrency: string;
+  direction: 'Outbound' | 'Return';
+}
+
+export interface ItineraryDto {
+  id: string;
+  origin: string;
+  finalDestination: string;
+  isRoundTrip: boolean;
+  outboundDeparture: string | null;
+  returnDeparture: string | null;
+  totalPriceAmount: number;
+  totalPriceCurrency: string;
+  totalDurationMinutes: number;
+  legCount: number;
+  legs: ItineraryLeg[];
+}
+
+export interface SearchItinerariesResult {
+  items: ItineraryDto[];
+  page: number;
+  pageSize: number;
+  returned: number;
+  sortBy: string;
+  sortOrder: string;
+  roundTripRequested: boolean;
+}
+
+export interface ItinerarySearchParams {
+  originCode: string;
+  destinationCode: string;
+  departureDate: string;
+  returnDate?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: 'price' | 'duration';
+  sortOrder?: 'asc' | 'desc';
+  maxOutbound?: number;
+  maxReturn?: number;
+  maxCombos?: number;
+}

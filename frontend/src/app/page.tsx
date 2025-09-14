@@ -2,6 +2,9 @@
 
 import { Navbar } from '@/components/Navbar';
 import { FlightSearchWrapper } from '@/components/FlightSearchWrapper';
+import { ItinerarySearchWrapper } from '@/components/ItinerarySearchWrapper';
+
+const USE_ITIN = process.env.NEXT_PUBLIC_USE_ITINERARIES === 'true';
 
 export default function Home() {
   return (
@@ -9,7 +12,7 @@ export default function Home() {
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <FlightSearchWrapper />
+        {USE_ITIN ? <ItinerarySearchWrapper /> : <FlightSearchWrapper />}
       </main>
     </div>
   );

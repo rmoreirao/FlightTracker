@@ -10,6 +10,9 @@ export const API_ENDPOINTS = {
     search: '/api/v1/Flights/search',
     getByNumber: '/api/v1/Flights/{airlineCode}/{flightNumber}',
   },
+  itineraries: {
+    search: '/api/v1/Itineraries/search',
+  },
   health: {
     status: '/api/v1/Health',
     info: '/api/v1/Health/info',

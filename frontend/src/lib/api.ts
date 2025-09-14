@@ -6,7 +6,9 @@ import {
   SystemInfo, 
   ProblemDetails, 
   ValidationProblemDetails,
-  Flight 
+  Flight,
+  SearchItinerariesResult,
+  ItinerarySearchParams
 } from './api-types';
 
 export class ApiError extends Error {
@@ -121,6 +123,18 @@ class FlightTrackerApiClient {
     }
 
     return this.makeRequest<Flight>(endpoint);
+  }
+
+  // Itinerary Search API
+  async searchItineraries(params: ItinerarySearchParams): Promise<SearchItinerariesResult> {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+    const endpoint = `${API_ENDPOINTS.itineraries.search}?${queryParams.toString()}`;
+    return this.makeRequest<SearchItinerariesResult>(endpoint);
   }
 
   // Health Check APIs
