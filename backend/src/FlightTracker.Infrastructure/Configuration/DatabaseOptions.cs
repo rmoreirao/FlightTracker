@@ -42,4 +42,30 @@ public class DatabaseOptions
     /// Whether to create TimescaleDB hypertables for time-series data
     /// </summary>
     public bool CreateHypertables { get; set; } = true;
+
+    // ---- Itinerary generation options ----
+    /// <summary>
+    /// Whether to generate itineraries (derived from flights) during seeding
+    /// </summary>
+    public bool GenerateItineraries { get; set; } = true;
+
+    /// <summary>
+    /// Max one-way itineraries per (route, day)
+    /// </summary>
+    public int MaxOneWayPerRoutePerDay { get; set; } = 5;
+
+    /// <summary>
+    /// Max round-trip itineraries per (route, departure day)
+    /// </summary>
+    public int MaxRoundTripsPerRoutePerDay { get; set; } = 5;
+
+    /// <summary>
+    /// Minimum days after outbound for return flight
+    /// </summary>
+    public int MinReturnTripDays { get; set; } = 2;
+
+    /// <summary>
+    /// Maximum days after outbound for return flight
+    /// </summary>
+    public int MaxReturnTripDays { get; set; } = 14;
 }

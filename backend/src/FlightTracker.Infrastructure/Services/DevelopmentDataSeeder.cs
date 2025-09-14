@@ -48,6 +48,7 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
         await SeedAirportsAsync();
         await SeedAirlinesAsync();
         await SeedFlightsAsync();
+    await SeedItinerariesAsync();
         await SeedFlightQueriesAsync();
         await SeedPriceHistoryAsync();
         
@@ -59,6 +60,20 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
         _logger.LogInformation("🗑️ Deleting all existing data in correct order...");
 
         // Delete in reverse dependency order to respect foreign key constraints
+        // (ItineraryLegs -> Itineraries depend on Flights)
+        var itineraryLegsCount = await _context.ItineraryLegs.CountAsync();
+        if (itineraryLegsCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"ItineraryLegs\"");
+            _logger.LogInformation("🗑️ Deleted {Count} itinerary legs", itineraryLegsCount);
+        }
+
+        var itinerariesCount = await _context.Itineraries.CountAsync();
+        if (itinerariesCount > 0)
+        {
+            await _context.Database.ExecuteSqlRawAsync("DELETE FROM \"Itineraries\"");
+            _logger.LogInformation("🗑️ Deleted {Count} itineraries", itinerariesCount);
+        }
         
         // 1. Delete PriceSnapshots (has FKs to FlightQueries and Airlines)
         var priceSnapshotsCount = await _context.PriceSnapshots.CountAsync();
@@ -296,6 +311,137 @@ public class DevelopmentDataSeeder : IDevelopmentDataSeeder
         await _context.SaveChangesAsync();
         _logger.LogInformation("🔍 Seeded flight queries for {Count} routes", routes.Length);
     }
+
+    private async Task SeedItinerariesAsync()
+    {
+        if (!_options.GenerateItineraries)
+        {
+            _logger.LogInformation("🛑 Itinerary generation disabled via config");
+            return;
+        }
+
+        // Avoid duplicate generation if already present (in non-force reseed scenarios)
+        if (!_options.ForceReseedData && await _context.Itineraries.AnyAsync())
+        {
+            _logger.LogInformation("ℹ️ Itineraries already exist, skipping generation");
+            return;
+        }
+
+        _logger.LogInformation("🧪 Generating itineraries (one-way & round-trip)...");
+
+        // Load flights with necessary navigation (segments already loaded by include for search, but here we create legs directly)
+        var flights = await _context.Flights
+            .Include(f => f.Segments)
+            .AsNoTracking()
+            .ToListAsync();
+
+        if (flights.Count == 0)
+        {
+            _logger.LogWarning("No flights available for itinerary generation");
+            return;
+        }
+
+        // Group flights by (origin,destination, departureDate)
+        var grouped = flights
+            .Select(f => new
+            {
+                Flight = f,
+                Origin = f.Segments.First().OriginCode,
+                Destination = f.Segments.Last().DestinationCode,
+                Date = f.Segments.First().DepartureTime.Date
+            })
+            .GroupBy(x => (x.Origin, x.Destination, x.Date))
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Flight).OrderBy(f => f.DepartureTime).ToList());
+
+        var oneWayCap = _options.MaxOneWayPerRoutePerDay;
+        var roundTripCap = _options.MaxRoundTripsPerRoutePerDay;
+        var minReturn = _options.MinReturnTripDays;
+        var maxReturn = _options.MaxReturnTripDays;
+
+        var newItineraries = new List<Itinerary>();
+        var random = _random; // reuse seeded RNG
+
+        // One-way itineraries
+        foreach (var kvp in grouped)
+        {
+            var flightsForKey = kvp.Value;
+            var sample = flightsForKey.Take(oneWayCap).ToList();
+            foreach (var flight in sample)
+            {
+                var seg = flight.Segments.First();
+                var leg = new ItineraryLeg(
+                    sequence: 0,
+                    flightId: flight.Id,
+                    flightNumber: flight.FlightNumber,
+                    airlineCode: flight.AirlineCode,
+                    originCode: seg.OriginCode,
+                    destinationCode: seg.DestinationCode,
+                    departureUtc: seg.DepartureTime,
+                    arrivalUtc: seg.ArrivalTime,
+                    // Clone Money to avoid sharing owned instance across multiple legs
+                    priceComponent: new Money(flight.Price.Amount, flight.Price.Currency),
+                    cabinClass: flight.CabinClass,
+                    direction: LegDirection.Outbound);
+                var itin = Itinerary.Create(new[] { leg });
+                newItineraries.Add(itin);
+            }
+        }
+
+        // Round-trip itineraries: pair routes (A->B) with (B->A)
+        var roundTripCount = 0;
+        foreach (var kvp in grouped)
+        {
+            var (orig, dest, date) = kvp.Key;
+            var outboundFlights = kvp.Value;
+            // For each potential return date window
+            for (int days = minReturn; days <= maxReturn; days++)
+            {
+                var returnDate = date.AddDays(days);
+                if (!grouped.TryGetValue((dest, orig, returnDate), out var returnFlights))
+                    continue;
+
+                foreach (var outbound in outboundFlights.Take(roundTripCap))
+                {
+                    if (roundTripCount >= roundTripCap) break; // cap per departure day / route
+                    var ret = returnFlights.FirstOrDefault();
+                    if (ret == null) continue;
+
+                    var outSeg = outbound.Segments.First();
+                    var retSeg = ret.Segments.First();
+
+                    // Currency consistency check
+                    if (outbound.Price.Currency != ret.Price.Currency) continue;
+
+                    var leg0 = new ItineraryLeg(0, outbound.Id, outbound.FlightNumber, outbound.AirlineCode,
+                        outSeg.OriginCode, outSeg.DestinationCode, outSeg.DepartureTime, outSeg.ArrivalTime, new Money(outbound.Price.Amount, outbound.Price.Currency), outbound.CabinClass, LegDirection.Outbound);
+                    var leg1 = new ItineraryLeg(1, ret.Id, ret.FlightNumber, ret.AirlineCode,
+                        retSeg.OriginCode, retSeg.DestinationCode, retSeg.DepartureTime, retSeg.ArrivalTime, new Money(ret.Price.Amount, ret.Price.Currency), ret.CabinClass, LegDirection.Return);
+                    var itin = Itinerary.Create(new[] { leg0, leg1 });
+                    newItineraries.Add(itin);
+                    roundTripCount++;
+                }
+                if (roundTripCount >= roundTripCap) break;
+            }
+            roundTripCount = 0; // reset for next outbound route-date
+        }
+
+        // Persist in batches
+        const int batchSize = 200;
+        for (int i = 0; i < newItineraries.Count; i += batchSize)
+        {
+            var batch = newItineraries.Skip(i).Take(batchSize).ToList();
+            _context.Itineraries.AddRange(batch);
+            await _context.SaveChangesAsync();
+        }
+
+        _logger.LogInformation("🧾 Generated {OneWay} one-way and {RoundTrip} round-trip itineraries (total {Total})", 
+            newItineraries.Count(i => i.Legs.Count == 1),
+            newItineraries.Count(i => i.Legs.Count == 2),
+            newItineraries.Count);
+    }
+
+    // Internal test hook (avoid making main method public)
+    public Task SeedItinerariesAsyncWrapperForTest() => SeedItinerariesAsync();
 
     public async Task SeedPriceHistoryAsync()
     {
