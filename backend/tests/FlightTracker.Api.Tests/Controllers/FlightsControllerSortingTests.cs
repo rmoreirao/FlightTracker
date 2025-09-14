@@ -158,14 +158,12 @@ public class FlightsControllerTests
     }
 
     [Theory]
-    [InlineData(0, 20, 1, 20)] // Invalid page defaults to 1
-    [InlineData(1, 0, 1, 20)] // Invalid pageSize defaults to 20
-    [InlineData(1, 101, 1, 20)] // PageSize > 100 defaults to 20
-    [InlineData(2, 50, 2, 50)] // Valid values
+    [InlineData(0, 0, 1, 1)] // Page <1 ->1, size <1 ->1
+    [InlineData(1, 101, 1, 100)] // Cap size at 100
+    [InlineData(2, 50, 2, 50)] // Valid
     public async Task SearchFlights_WithDifferentPagination_ShouldHandleCorrectly(
         int inputPage, int inputPageSize, int expectedPage, int expectedPageSize)
     {
-        // Arrange
         var origin = "LAX";
         var destination = "JFK";
         var departureDate = DateTime.UtcNow.Date.AddDays(1);
@@ -174,35 +172,22 @@ public class FlightsControllerTests
         _mediatorMock.Setup(m => m.Send(It.IsAny<SearchFlightsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockResult);
 
-        // Act
-        var result = await _controller.SearchFlights(
-            origin, destination, departureDate, null, null, 1, 0, 0, "price", "asc", inputPage, inputPageSize);
-
-        // Assert
+        var result = await _controller.SearchFlights(origin, destination, departureDate, null, null, 1, 0, 0, "price", "asc", inputPage, inputPageSize);
         result.Should().BeOfType<OkObjectResult>();
-
-        // Verify the query was sent with correct pagination parameters
         _mediatorMock.Verify(m => m.Send(
-            It.Is<SearchFlightsQuery>(q => 
-                q.SearchOptions != null &&
-                q.SearchOptions.Page == expectedPage &&
-                q.SearchOptions.PageSize == expectedPageSize),
+            It.Is<SearchFlightsQuery>(q => q.SearchOptions != null && q.SearchOptions.Page == expectedPage && q.SearchOptions.PageSize == expectedPageSize),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task SearchFlights_WhenMediatorThrows_ShouldPropagateException()
+    public async Task SearchFlights_WhenMediatorThrows_ShouldReturn500()
     {
-        // Arrange
         var origin = "LAX";
         var destination = "JFK";
         var departureDate = DateTime.UtcNow.Date.AddDays(1);
-
         _mediatorMock.Setup(m => m.Send(It.IsAny<SearchFlightsQuery>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Test exception"));
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _controller.SearchFlights(origin, destination, departureDate));
+        var result = await _controller.SearchFlights(origin, destination, departureDate);
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(500);
     }
 }

@@ -1,8 +1,10 @@
 using FlightTracker.Api.Application.DTOs;
 using FlightTracker.Api.Application.Mapping;
+using FlightTracker.Api.Application.Queries;
 using FlightTracker.Domain.Enums;
-using FlightTracker.Domain.Services;
 using FlightTracker.Domain.ValueObjects;
+using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FlightTracker.Api.Controllers;
@@ -16,20 +18,39 @@ namespace FlightTracker.Api.Controllers;
 [Tags("Itineraries")]
 public class ItinerariesController : ControllerBase
 {
-    private readonly IItinerarySearchService _searchService;
+    private readonly IMediator _mediator;
     private readonly ILogger<ItinerariesController> _logger;
 
-    public ItinerariesController(IItinerarySearchService searchService, ILogger<ItinerariesController> logger)
+    public ItinerariesController(IMediator mediator, ILogger<ItinerariesController> logger)
     {
-        _searchService = searchService;
+        _mediator = mediator;
         _logger = logger;
     }
 
     /// <summary>
-    /// Search itineraries (one-way or round-trip). Returns composed journey options.
+    /// Search available itineraries (one-way or round-trip) pairing flights into journey options.
+    /// Supports server-side paging, basic sorting, and optional round-trip pairing when a return date is supplied.
     /// </summary>
+    /// <remarks>
+    /// Sample request:
+    /// <c>GET /api/v1/itineraries/search?originCode=LAX&amp;destinationCode=JFK&amp;departureDate=2025-10-01&amp;returnDate=2025-10-05&amp;sortBy=price&amp;sortOrder=asc</c>
+    ///
+    /// Sorting:
+    /// - sortBy: price | duration (defaults price)
+    /// - sortOrder: asc | desc (defaults asc)
+    ///
+    /// Limits (can be tuned):
+    /// - maxOutbound: maximum candidate outbound flights considered
+    /// - maxReturn: maximum candidate inbound flights considered (round-trip only)
+    /// - maxCombos: safety cap on total pair combinations attempted
+    ///
+    /// Paging: page (1-based) &amp; pageSize (1..100)
+    /// </remarks>
     [HttpGet("search")]
-    [ProducesResponseType(typeof(IEnumerable<ItineraryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(SearchItinerariesResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Search(
         [FromQuery] string originCode,
         [FromQuery] string destinationCode,
@@ -44,24 +65,52 @@ public class ItinerariesController : ControllerBase
         [FromQuery] string? sortOrder = null,
         CancellationToken cancellationToken = default)
     {
-        var options = new ItinerarySearchOptions
+        try
         {
-            Page = Math.Max(1, page),
-            PageSize = Math.Max(1, Math.Min(100, pageSize)),
-            MaxOutboundFlights = Math.Max(1, maxOutbound),
-            MaxReturnFlights = Math.Max(1, maxReturn),
-            MaxCombinations = Math.Max(1, maxCombos),
-            SortBy = ParseSortBy(sortBy),
-            SortOrder = ParseSortOrder(sortOrder)
-        };
-        var itineraries = await _searchService.SearchAsync(
-            originCode.ToUpperInvariant(),
-            destinationCode.ToUpperInvariant(),
-            departureDate,
-            returnDate,
-            options,
-            cancellationToken);
-        return Ok(itineraries.Select(i => i.ToDto()));
+            var options = ItinerarySearchOptions.Create(
+                sortBy: ParseSortBy(sortBy),
+                sortOrder: ParseSortOrder(sortOrder),
+                page: Math.Max(1,page),
+                pageSize: Math.Max(1, Math.Min(100, pageSize)),
+                maxOutbound: Math.Max(1, maxOutbound),
+                maxReturn: Math.Max(1, maxReturn),
+                maxCombos: Math.Max(1, maxCombos));
+
+            var query = new SearchItinerariesQuery(
+                originCode.ToUpperInvariant(),
+                destinationCode.ToUpperInvariant(),
+                departureDate,
+                returnDate,
+                options);
+            var result = await _mediator.Send(query, cancellationToken);
+            return Ok(result);
+        }
+        catch (ValidationException ex)
+        {
+            var problem = new ValidationProblemDetails
+            {
+                Title = "Validation failed",
+                Status = StatusCodes.Status400BadRequest,
+                Detail = "One or more validation errors occurred."
+            };
+            foreach (var error in ex.Errors)
+            {
+                if (problem.Errors.ContainsKey(error.PropertyName))
+                {
+                    problem.Errors[error.PropertyName] = problem.Errors[error.PropertyName].Concat(new[]{error.ErrorMessage}).ToArray();
+                }
+                else
+                {
+                    problem.Errors.Add(error.PropertyName, new[]{error.ErrorMessage});
+                }
+            }
+            return BadRequest(problem);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error searching itineraries {Origin}-{Destination}", originCode, destinationCode);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails{ Title="Internal Server Error", Status=500, Detail="An unexpected error occurred. Please try again later."});
+        }
     }
 
     private static FlightSortBy ParseSortBy(string? sortBy)
