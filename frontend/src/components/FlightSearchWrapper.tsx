@@ -1,12 +1,14 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { FlightSearchForm } from '@/components/FlightSearchForm';
 import { FlightResults } from '@/components/FlightResults';
 import { FlightSearchFormValues } from '@/lib/schemas';
 import { useFlightSearch } from '@/hooks/useFlightSearch';
 
 function FlightSearchContent() {
+  const [expandedFlightId, setExpandedFlightId] = useState<string | null>(null);
+  
   const { 
     searchResults, 
     isLoading, 
@@ -24,7 +26,12 @@ function FlightSearchContent() {
 
   const handleSearch = async (searchData: FlightSearchFormValues) => {
     clearError();
+    setExpandedFlightId(null); // Close any expanded details when searching
     await searchFlights(searchData);
+  };
+
+  const handleFlightExpand = (flightId: string) => {
+    setExpandedFlightId(expandedFlightId === flightId ? null : flightId);
   };
 
   return (
@@ -66,6 +73,8 @@ function FlightSearchContent() {
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           isPaging={isPaging}
+          expandedFlightId={expandedFlightId}
+          onFlightExpand={handleFlightExpand}
         />
       )}
     </div>

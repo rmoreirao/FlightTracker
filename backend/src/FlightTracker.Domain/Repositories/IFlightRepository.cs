@@ -15,6 +15,7 @@ public interface IFlightRepository
         string originCode,
         string destinationCode,
         DateTime departureDate,
+        DateTime? returnDate = null,
         FlightSearchOptions? searchOptions = null,
         CancellationToken cancellationToken = default);
 

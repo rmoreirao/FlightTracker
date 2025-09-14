@@ -63,6 +63,35 @@ export interface Flight {
   status: FlightStatus;
   isDirect: boolean;
   isInternational: boolean;
+  // Extended details for expandable view
+  departureTerminal?: string | null;
+  arrivalTerminal?: string | null;
+  aircraftModel?: string | null;
+  registration?: string | null;
+  amenities?: FlightAmenities | null;
+  fareBreakdown?: FareBreakdown | null;
+  policies?: FlightPolicies | null;
+}
+
+export interface FlightAmenities {
+  wifi: boolean;
+  entertainment: boolean;
+  power: boolean;
+  meals?: string | null;
+  legroom?: string | null;
+}
+
+export interface FareBreakdown {
+  baseFare: number;
+  taxes: number;
+  fees: number;
+  currency: string;
+}
+
+export interface FlightPolicies {
+  cancellation?: string | null;
+  changes?: string | null;
+  baggage?: string | null;
 }
 
 export interface SearchFlightsResult {

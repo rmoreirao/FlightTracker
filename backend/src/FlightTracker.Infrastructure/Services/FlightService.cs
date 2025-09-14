@@ -33,20 +33,29 @@ public class FlightService : IFlightService
         FlightSearchOptions? searchOptions = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Searching flights from {Origin} to {Destination} on {Date}",
-            originCode, destinationCode, departureDate.ToString("yyyy-MM-dd"));
+        _logger.LogInformation("Searching flights from {Origin} to {Destination} on departure date {Date} and return date {ReturnDate}",
+            originCode, destinationCode, departureDate.ToString("yyyy-MM-dd"), returnDate?.ToString("yyyy-MM-dd"));
 
         try
         {
-            // Search for outbound flights
-            var outboundFlights = await _flightRepository.SearchAsync(
-                originCode, destinationCode, departureDate, searchOptions, cancellationToken);
+            // Search for flights (handles both one-way and round-trip)
+            var flights = await _flightRepository.SearchAsync(
+                originCode, destinationCode, departureDate, returnDate, searchOptions, cancellationToken);
 
-            _logger.LogInformation("Found {Count} outbound flights", outboundFlights.Count);
+            var outboundCount = flights.Count(f => f.Origin?.Code == originCode && f.Destination?.Code == destinationCode);
+            var returnCount = returnDate.HasValue ? flights.Count(f => f.Origin?.Code == destinationCode && f.Destination?.Code == originCode) : 0;
 
-            // For now, return only outbound flights
-            // TODO: Implement return flight logic when round-trip searches are needed
-            return outboundFlights;
+            if (returnDate.HasValue)
+            {
+                _logger.LogInformation("Found {OutboundCount} outbound and {ReturnCount} return flights for round-trip search", 
+                    outboundCount, returnCount);
+            }
+            else
+            {
+                _logger.LogInformation("Found {Count} outbound flights for one-way search", outboundCount);
+            }
+
+            return flights;
         }
         catch (Exception ex)
         {

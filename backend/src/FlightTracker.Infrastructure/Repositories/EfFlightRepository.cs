@@ -24,6 +24,7 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
         string originCode,
         string destinationCode,
         DateTime departureDate,
+        DateTime? returnDate = null,
         FlightSearchOptions? searchOptions = null,
         CancellationToken cancellationToken = default)
     {
@@ -34,7 +35,12 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                 ? DateTime.SpecifyKind(departureDate, DateTimeKind.Utc) 
                 : departureDate.ToUniversalTime();
 
-            var query = _dbSet
+            var returnDateUtc = returnDate?.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(returnDate.Value, DateTimeKind.Utc) 
+                : returnDate?.ToUniversalTime();
+
+            // Search for outbound flights
+            var outboundQuery = _dbSet
                 .Include(f => f.Segments)
                     .ThenInclude(s => s.Origin)
                 .Include(f => f.Segments)
@@ -49,35 +55,77 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                     s.DepartureTime.Date == departureDateUtc.Date))
                 .AsNoTracking();
 
-            // Apply sorting if provided
+            var allFlights = new List<Flight>();
+
+            // Apply sorting and pagination to outbound flights
+            var outboundQueryWithOptions = outboundQuery;
             if (searchOptions?.SortBy != null)
             {
-                query = ApplySorting(query, searchOptions.SortBy, searchOptions.SortOrder);
+                outboundQueryWithOptions = ApplySorting(outboundQueryWithOptions, searchOptions.SortBy, searchOptions.SortOrder);
             }
             else
             {
-                // Default sorting by departure time
-                query = query.OrderBy(f => f.Segments.Min(s => s.DepartureTime));
+                outboundQueryWithOptions = outboundQueryWithOptions.OrderBy(f => f.Segments.Min(s => s.DepartureTime));
             }
 
-            // Apply pagination if provided
-            if (searchOptions?.Page > 0 && searchOptions?.PageSize > 0)
+            // Apply pagination - for round-trip, we need to consider both directions
+            var pageSize = searchOptions?.PageSize ?? 100;
+            var skip = searchOptions?.Page > 0 ? (searchOptions.Page - 1) * pageSize : 0;
+            
+            if (returnDateUtc.HasValue)
             {
-                var skip = (searchOptions.Page - 1) * searchOptions.PageSize;
-                query = query.Skip(skip).Take(searchOptions.PageSize);
+                // For round-trip searches, get half the page size for each direction
+                var halfPageSize = Math.Max(1, pageSize / 2);
+                outboundQueryWithOptions = outboundQueryWithOptions.Skip(skip / 2).Take(halfPageSize);
+                
+                var outboundFlights = await outboundQueryWithOptions.ToListAsync(cancellationToken);
+                allFlights.AddRange(outboundFlights);
+
+                // Search for return flights (swap origin and destination)
+                var returnQuery = _dbSet
+                    .Include(f => f.Segments)
+                        .ThenInclude(s => s.Origin)
+                    .Include(f => f.Segments)
+                        .ThenInclude(s => s.Destination)
+                    .Include(f => f.Segments)
+                        .ThenInclude(s => s.Airline)
+                    .Include(f => f.Origin)
+                    .Include(f => f.Destination)
+                    .Where(f => f.Segments.Any(s => 
+                        s.OriginCode == destinationCode && 
+                        s.DestinationCode == originCode &&
+                        s.DepartureTime.Date == returnDateUtc.Value.Date))
+                    .AsNoTracking();
+
+                // Apply same sorting logic to return flights
+                if (searchOptions?.SortBy != null)
+                {
+                    returnQuery = ApplySorting(returnQuery, searchOptions.SortBy, searchOptions.SortOrder);
+                }
+                else
+                {
+                    returnQuery = returnQuery.OrderBy(f => f.Segments.Min(s => s.DepartureTime));
+                }
+
+                returnQuery = returnQuery.Skip(skip / 2).Take(halfPageSize);
+                var returnFlights = await returnQuery.ToListAsync(cancellationToken);
+                allFlights.AddRange(returnFlights);
+
+                _logger.LogDebug("Round-trip flight search for {Origin}-{Destination} on {DepartureDate} returning {ReturnDate}: found {OutboundCount} outbound and {ReturnCount} return flights",
+                    originCode, destinationCode, departureDateUtc, returnDateUtc, outboundFlights.Count, returnFlights.Count);
             }
             else
             {
-                // Default limit for performance
-                query = query.Take(100);
+                // One-way search
+                outboundQueryWithOptions = outboundQueryWithOptions.Skip(skip).Take(pageSize);
+                var outboundFlights = await outboundQueryWithOptions.ToListAsync(cancellationToken);
+                allFlights.AddRange(outboundFlights);
+
+                _logger.LogDebug("One-way flight search for {Origin}-{Destination} on {DepartureDate} returned {Count} results",
+                    originCode, destinationCode, departureDateUtc, outboundFlights.Count);
             }
 
-            var flights = await query.ToListAsync(cancellationToken);
-
-            _logger.LogDebug("Flight search for {Origin}-{Destination} on {DepartureDate} returned {Count} results",
-                originCode, destinationCode, departureDateUtc, flights.Count);
-
-            return flights.AsReadOnly();
+            return allFlights.AsReadOnly();
         }
         catch (Exception ex)
         {

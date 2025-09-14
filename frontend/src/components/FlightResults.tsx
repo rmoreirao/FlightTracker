@@ -1,10 +1,11 @@
 'use client';
 
 import { FlightOption, SortOption, SortDirection, PaginationInfo } from '@/lib/schemas';
-import { ClockIcon, ArrowRightIcon, ArrowTopRightOnSquareIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, ArrowRightIcon, ArrowTopRightOnSquareIcon, ArrowUpIcon, ArrowDownIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { formatPrice, formatDuration } from '@/lib/api';
 import { Pagination } from './Pagination';
+import { FlightDetails } from './FlightDetails';
 
 interface FlightResultsProps {
   results: FlightOption[];
@@ -21,6 +22,10 @@ interface FlightResultsProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   isPaging: boolean;
+  
+  // Expandable details
+  expandedFlightId: string | null;
+  onFlightExpand: (flightId: string) => void;
 }
 
 export function FlightResults({ 
@@ -33,7 +38,9 @@ export function FlightResults({
   paginationInfo,
   onPageChange,
   onPageSizeChange,
-  isPaging
+  isPaging,
+  expandedFlightId,
+  onFlightExpand
 }: FlightResultsProps) {
   const formatStops = (stops: number) => {
     if (stops === 0) return 'Nonstop';
@@ -214,8 +221,28 @@ export function FlightResults({
                     Not Available
                   </button>
                 )}
+                
+                {/* Expand/Collapse Button */}
+                <button
+                  onClick={() => onFlightExpand(flight.id)}
+                  className="p-2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                  aria-label={expandedFlightId === flight.id ? "Collapse flight details" : "Expand flight details"}
+                >
+                  <ChevronDownIcon 
+                    className={`h-5 w-5 transition-transform ${
+                      expandedFlightId === flight.id ? 'rotate-180' : ''
+                    }`} 
+                  />
+                </button>
               </div>
             </div>
+            
+            {/* Expandable Flight Details */}
+            {expandedFlightId === flight.id && (
+              <div className="mt-6 pt-6 border-t border-neutral-200">
+                <FlightDetails flight={flight} />
+              </div>
+            )}
           </div>
         ))}
       </div>

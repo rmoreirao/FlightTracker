@@ -1,4 +1,7 @@
-# Flight Price Monitor – Product Requirements Document (PRD)
+# Flight Price Monitor – Product Requi| FS-4 | As a **visitor**, I see a timestamp indicating when prices were last refreshed. | • Timestamp format: "Prices updated <xx> minutes ago". |
+| FS-5 | As a **visitor**, I can view detailed flight information by expanding a flight card. | • Click expand icon to show detailed flight info (aircraft, terminal, amenities).<br>• Only one flight detail can be expanded at a time.<br>• Expanded section includes route segments, fare breakdown, and policies.<br>• Click collapse or expand another flight to close current details. |
+
+### 5.2 Historical Price Timelineents Document (PRD)
 
 ## 1 – Purpose
 Build a SaaS web application that:
