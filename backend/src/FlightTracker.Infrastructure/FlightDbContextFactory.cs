@@ -21,7 +21,7 @@ namespace FlightTracker.Infrastructure
             var config = builder.Build();
             var connectionString = config.GetConnectionString("DefaultConnection")
                 ?? config["ConnectionStrings:DefaultConnection"]
-                ?? "Host=localhost;Port=5432;Database=flighttracker;Username=postgres;Password=postgres";
+                ?? "Host=localhost;Port=25247;Database=flighttracker;Username=postgres;Password=postgres";
 
             var optionsBuilder = new DbContextOptionsBuilder<FlightDbContext>();
             optionsBuilder.UseNpgsql(connectionString);

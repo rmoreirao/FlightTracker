@@ -64,11 +64,13 @@ public static class DependencyInjection
         services.AddScoped<IFlightRepository, EfFlightRepository>();
         services.AddScoped<IPriceSnapshotRepository, EfPriceSnapshotRepository>();
         services.AddScoped<IFlightQueryRepository, EfFlightQueryRepository>();
+    services.AddScoped<IItineraryRepository, EfItineraryRepository>();
 
         // Register services
         services.AddScoped<IFlightService, FlightService>();
         services.AddScoped<ICacheService, CacheService>();
         services.AddScoped<IPriceAnalysisService, PriceAnalysisService>();
+    services.AddScoped<IItinerarySearchService, ItinerarySearchService>();
 
         // Register database initialization services for development
         if (environment.IsDevelopment())

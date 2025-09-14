@@ -439,11 +439,57 @@ classDiagram
 2. **IFlightProvider**: Individual data source abstraction
 3. **ICacheService**: Caching abstraction
 4. **IPriceAnalysisService**: Analytics and trending
+5. **IItinerarySearchService**: Builds composed itineraries (one-way, round-trip) from flights
 
 ### Events
 
 1. **FlightSearchPerformedEvent**: Raised on searches
 2. **PriceSnapshotCollectedEvent**: Raised on price data collection
+
+### New Itinerary Aggregate
+
+The itinerary aggregate groups flight legs into a journey (supports future multi-city):
+
+```mermaid
+classDiagram
+    class Itinerary {
+        +Guid Id
+        +IReadOnlyList<ItineraryLeg> Legs
+        +Money TotalPrice
+        +DateTime CreatedAt
+        +string Origin
+        +string FinalDestination
+        +bool IsRoundTrip
+        +TimeSpan TotalDuration
+    }
+    class ItineraryLeg {
+        +int Sequence
+        +Guid FlightId
+        +string FlightNumber
+        +string AirlineCode
+        +string OriginCode
+        +string DestinationCode
+        +DateTime DepartureUtc
+        +DateTime ArrivalUtc
+        +Money PriceComponent
+        +CabinClass CabinClass
+        +LegDirection Direction
+    }
+    class LegDirection <<enumeration>> {
+        Outbound
+        Return
+        Intermediate
+    }
+    Itinerary *-- ItineraryLeg : contains
+    ItineraryLeg --> Flight : references
+```
+
+Invariants:
+- Legs ordered by contiguous Sequence starting at 0
+- Temporal order: each leg departs after or at arrival of prior leg (no overlap)
+- Round-trip requires last destination equals first origin
+- Uniform currency across leg price components
+- TotalPrice = sum(leg.PriceComponent)
 
 ## Aggregate Boundaries
 

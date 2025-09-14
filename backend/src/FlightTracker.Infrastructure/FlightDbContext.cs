@@ -16,10 +16,16 @@ namespace FlightTracker.Infrastructure
         public DbSet<FlightSegment> FlightSegments => Set<FlightSegment>();
         public DbSet<FlightQuery> FlightQueries => Set<FlightQuery>();
         public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
+    public DbSet<Itinerary> Itineraries => Set<Itinerary>();
+    public DbSet<ItineraryLeg> ItineraryLegs => Set<ItineraryLeg>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.HasPostgresExtension("timescaledb");
+            // Guard: only attempt to add extension when using Npgsql provider
+            if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                modelBuilder.HasPostgresExtension("timescaledb");
+            }
 
             modelBuilder.Entity<Airport>(entity =>
             {
@@ -114,6 +120,40 @@ namespace FlightTracker.Infrastructure
                 {
                     price.Property(p => p.Amount).HasColumnName("PriceAmount").IsRequired();
                     price.Property(p => p.Currency).HasColumnName("PriceCurrency").HasMaxLength(3).IsRequired();
+                });
+            });
+
+            // Itinerary aggregate
+            modelBuilder.Entity<Itinerary>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("NOW()");
+                // Owned / computed Money is materialized
+                entity.OwnsOne(e => e.TotalPrice, price =>
+                {
+                    price.Property(p => p.Amount).HasColumnName("TotalPriceAmount").IsRequired();
+                    price.Property(p => p.Currency).HasColumnName("TotalPriceCurrency").HasMaxLength(3).IsRequired();
+                });
+            });
+
+            modelBuilder.Entity<ItineraryLeg>(entity =>
+            {
+                entity.HasKey(e => new { e.ItineraryId, e.Sequence });
+                entity.Property(e => e.FlightNumber).HasMaxLength(10).IsRequired();
+                entity.Property(e => e.AirlineCode).HasMaxLength(3).IsRequired();
+                entity.Property(e => e.OriginCode).HasMaxLength(3).IsRequired();
+                entity.Property(e => e.DestinationCode).HasMaxLength(3).IsRequired();
+                entity.HasIndex(e => e.FlightId);
+                entity.HasOne<Itinerary>()
+                    .WithMany(i => i.Legs)
+                    .HasForeignKey(e => e.ItineraryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                // Price component
+                entity.OwnsOne(e => e.PriceComponent, price =>
+                {
+                    price.Property(p => p.Amount).HasColumnName("LegPriceAmount").IsRequired();
+                    price.Property(p => p.Currency).HasColumnName("LegPriceCurrency").HasMaxLength(3).IsRequired();
                 });
             });
         }
