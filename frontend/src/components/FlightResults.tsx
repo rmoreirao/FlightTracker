@@ -218,7 +218,7 @@ export function FlightResults({
                     disabled
                     className="bg-neutral-300 text-neutral-500 font-medium py-2 px-4 rounded-md cursor-not-allowed"
                   >
-                    Not Available
+                    Booking not Available
                   </button>
                 )}
                 
