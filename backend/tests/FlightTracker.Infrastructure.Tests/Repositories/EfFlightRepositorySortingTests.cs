@@ -37,7 +37,7 @@ public class EfFlightRepositorySortingTests : IClassFixture<DatabaseFixture>
             SortOrder.Ascending);
 
         // Act
-        var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), searchOptions);
+    var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, searchOptions);
 
         // Assert
         result.Should().NotBeEmpty();
@@ -58,7 +58,7 @@ public class EfFlightRepositorySortingTests : IClassFixture<DatabaseFixture>
             SortOrder.Descending);
 
         // Act
-        var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), searchOptions);
+    var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, searchOptions);
 
         // Assert
         result.Should().NotBeEmpty();
@@ -79,7 +79,7 @@ public class EfFlightRepositorySortingTests : IClassFixture<DatabaseFixture>
             SortOrder.Ascending);
 
         // Act
-        var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), searchOptions);
+    var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, searchOptions);
 
         // Assert
         result.Should().NotBeEmpty();
@@ -100,7 +100,7 @@ public class EfFlightRepositorySortingTests : IClassFixture<DatabaseFixture>
             SortOrder.Ascending);
 
         // Act
-        var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), searchOptions);
+    var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, searchOptions);
 
         // Assert
         result.Should().NotBeEmpty();
@@ -121,7 +121,7 @@ public class EfFlightRepositorySortingTests : IClassFixture<DatabaseFixture>
             SortOrder.Ascending);
 
         // Act
-        var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), searchOptions);
+    var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, searchOptions);
 
         // Assert
         result.Should().NotBeEmpty();
@@ -150,8 +150,8 @@ public class EfFlightRepositorySortingTests : IClassFixture<DatabaseFixture>
             pageSize: 2);
 
         // Act
-        var page1 = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), searchOptionsPage1);
-        var page2 = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), searchOptionsPage2);
+    var page1 = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, searchOptionsPage1);
+    var page2 = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, searchOptionsPage2);
 
         // Assert
         page1.Should().HaveCount(2);
@@ -179,7 +179,7 @@ public class EfFlightRepositorySortingTests : IClassFixture<DatabaseFixture>
         await SeedTestFlights(context);
 
         // Act
-        var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1));
+    var result = await repository.SearchAsync("LAX", "JFK", DateTime.UtcNow.Date.AddDays(1), null, null);
 
         // Assert
         result.Should().NotBeEmpty();

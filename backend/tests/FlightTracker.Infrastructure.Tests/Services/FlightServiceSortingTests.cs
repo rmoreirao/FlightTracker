@@ -3,6 +3,7 @@ using FlightTracker.Domain.Enums;
 using FlightTracker.Domain.ValueObjects;
 using FlightTracker.Infrastructure.Repositories;
 using FlightTracker.Infrastructure.Services;
+using FlightTracker.Domain.Repositories;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -42,12 +43,13 @@ public class FlightServiceSortingTests
             20);
 
         var mockFlights = new List<Flight>().AsReadOnly();
-        _flightRepositoryMock.Setup(r => r.SearchAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<FlightSearchOptions?>(),
-                It.IsAny<CancellationToken>()))
+    _flightRepositoryMock.Setup(r => r.SearchAsync(
+        It.IsAny<string>(),
+        It.IsAny<string>(),
+        It.IsAny<DateTime>(),
+        It.IsAny<DateTime?>(),
+        It.IsAny<FlightSearchOptions?>(),
+        It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockFlights);
 
         // Act
@@ -62,6 +64,7 @@ public class FlightServiceSortingTests
             originCode,
             destinationCode,
             departureDate,
+            null,
             searchOptions,
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -75,16 +78,17 @@ public class FlightServiceSortingTests
         var departureDate = DateTime.UtcNow.Date.AddDays(1);
 
         var mockFlights = new List<Flight>().AsReadOnly();
-        _flightRepositoryMock.Setup(r => r.SearchAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<FlightSearchOptions?>(),
-                It.IsAny<CancellationToken>()))
+    _flightRepositoryMock.Setup(r => r.SearchAsync(
+        It.IsAny<string>(),
+        It.IsAny<string>(),
+        It.IsAny<DateTime>(),
+        It.IsAny<DateTime?>(),
+        It.IsAny<FlightSearchOptions?>(),
+        It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockFlights);
 
         // Act
-        var result = await _service.SearchFlightsAsync(originCode, destinationCode, departureDate);
+    var result = await _service.SearchFlightsAsync(originCode, destinationCode, departureDate, null);
 
         // Assert
         result.Should().NotBeNull();
@@ -94,6 +98,7 @@ public class FlightServiceSortingTests
             originCode,
             destinationCode,
             departureDate,
+            null,
             null,
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -106,17 +111,18 @@ public class FlightServiceSortingTests
         var destinationCode = "JFK";
         var departureDate = DateTime.UtcNow.Date.AddDays(1);
 
-        _flightRepositoryMock.Setup(r => r.SearchAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<FlightSearchOptions?>(),
-                It.IsAny<CancellationToken>()))
+    _flightRepositoryMock.Setup(r => r.SearchAsync(
+        It.IsAny<string>(),
+        It.IsAny<string>(),
+        It.IsAny<DateTime>(),
+        It.IsAny<DateTime?>(),
+        It.IsAny<FlightSearchOptions?>(),
+        It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Repository error"));
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _service.SearchFlightsAsync(originCode, destinationCode, departureDate));
+            _service.SearchFlightsAsync(originCode, destinationCode, departureDate, null));
     }
 
     [Fact]
@@ -128,16 +134,17 @@ public class FlightServiceSortingTests
         var departureDate = DateTime.UtcNow.Date.AddDays(1);
 
         var mockFlights = new List<Flight>().AsReadOnly();
-        _flightRepositoryMock.Setup(r => r.SearchAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<FlightSearchOptions?>(),
-                It.IsAny<CancellationToken>()))
+    _flightRepositoryMock.Setup(r => r.SearchAsync(
+        It.IsAny<string>(),
+        It.IsAny<string>(),
+        It.IsAny<DateTime>(),
+        It.IsAny<DateTime?>(),
+        It.IsAny<FlightSearchOptions?>(),
+        It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockFlights);
 
         // Act
-        await _service.SearchFlightsAsync(originCode, destinationCode, departureDate);
+    await _service.SearchFlightsAsync(originCode, destinationCode, departureDate, null);
 
         // Assert
         _loggerMock.Verify(

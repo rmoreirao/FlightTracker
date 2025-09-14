@@ -49,6 +49,15 @@ public class ItineraryLeg
         Direction = direction;
     }
 
+    // Alternate constructor allowing explicit ItineraryId (e.g., materialization or tests desiring preset Id)
+    public ItineraryLeg(Guid itineraryId, int sequence, Guid flightId, string flightNumber, string airlineCode,
+        string originCode, string destinationCode, DateTime departureUtc, DateTime arrivalUtc,
+        Money priceComponent, CabinClass cabinClass, LegDirection direction)
+        : this(sequence, flightId, flightNumber, airlineCode, originCode, destinationCode, departureUtc, arrivalUtc, priceComponent, cabinClass, direction)
+    {
+        ItineraryId = itineraryId;
+    }
+
     private ItineraryLeg() {}
 
     private static DateTime EnsureUtc(DateTime dt)

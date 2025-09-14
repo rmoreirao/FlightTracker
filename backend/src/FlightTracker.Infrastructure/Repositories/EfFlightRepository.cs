@@ -147,9 +147,10 @@ public class EfFlightRepository : EfBaseRepository<Flight, Guid>, IFlightReposit
                 ? query.OrderBy(f => f.Segments.Max(s => s.ArrivalTime))
                 : query.OrderByDescending(f => f.Segments.Max(s => s.ArrivalTime)),
             
+            // Use segment times for duration so EF can translate (Duration property may be unmapped/computed)
             FlightSortBy.Duration => sortOrder == SortOrder.Ascending
-                ? query.OrderBy(f => f.Duration)
-                : query.OrderByDescending(f => f.Duration),
+                ? query.OrderBy(f => f.Segments.Max(s => s.ArrivalTime) - f.Segments.Min(s => s.DepartureTime))
+                : query.OrderByDescending(f => f.Segments.Max(s => s.ArrivalTime) - f.Segments.Min(s => s.DepartureTime)),
             
             FlightSortBy.Price => sortOrder == SortOrder.Ascending
                 ? query.OrderBy(f => f.Price.Amount)
