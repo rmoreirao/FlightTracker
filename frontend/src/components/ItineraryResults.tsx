@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { ItineraryOption } from '@/lib/itinerary-utils';
 import { formatPrice } from '@/lib/api';
-import { ArrowRightIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon, ArrowUpIcon, ArrowDownIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
+import { ItineraryDetails } from './ItineraryDetails';
 
 interface ItineraryResultsProps {
   results: ItineraryOption[];
@@ -17,6 +19,9 @@ interface ItineraryResultsProps {
   onSortChange: (sort: 'price' | 'duration') => void;
   onToggleSortOrder: () => void;
   isSorting: boolean;
+  // Expansion props now optional
+  expandedItineraryId?: string | null;
+  onItineraryExpand?: (id: string) => void;
 }
 
 export function ItineraryResults({
@@ -31,7 +36,21 @@ export function ItineraryResults({
   onSortChange,
   onToggleSortOrder,
   isSorting,
+  expandedItineraryId,
+  onItineraryExpand,
 }: ItineraryResultsProps) {
+  // Internal fallback state if not controlled externally
+  const [internalExpandedId, setInternalExpandedId] = useState<string | null>(null);
+  const actualExpandedId = expandedItineraryId !== undefined ? expandedItineraryId : internalExpandedId;
+
+  const handleExpand = useCallback((id: string) => {
+    if (onItineraryExpand) {
+      onItineraryExpand(id);
+    } else {
+      setInternalExpandedId(prev => prev === id ? null : id);
+    }
+  }, [onItineraryExpand]);
+
   if (results.length === 0) {
     return (
       <div className="bg-neutral-100 rounded-lg p-8 text-center">
@@ -66,13 +85,13 @@ export function ItineraryResults({
         <div className="text-sm text-neutral-600">Page {page}</div>
         <div className="flex items-center gap-2">
           <span className="text-sm">Sort:</span>
-          <SortButton label="Price" value="price" />
-          <SortButton label="Duration" value="duration" />
+            <SortButton label="Price" value="price" />
+            <SortButton label="Duration" value="duration" />
         </div>
       </div>
 
       {results.map(it => (
-        <div key={it.id} className={`bg-neutral-100 rounded-lg p-4 md:p-6 space-y-4 ${isPaging || isSorting ? 'opacity-75' : ''}`}>          
+        <div key={it.id} className={`bg-neutral-100 rounded-lg p-4 md:p-6 space-y-4 ${(isPaging || isSorting) ? 'opacity-75' : ''}`}>
           <div className="flex flex-col md:flex-row md:justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
@@ -131,8 +150,21 @@ export function ItineraryResults({
                 <div className="text-sm text-neutral-600">Total price</div>
               </div>
               <button disabled className="bg-neutral-300 text-neutral-500 font-medium py-2 px-4 rounded-md cursor-not-allowed">Booking N/A</button>
+              <button
+                onClick={() => handleExpand(it.id)}
+                className="p-2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                aria-label={actualExpandedId === it.id ? 'Collapse itinerary details' : 'Expand itinerary details'}
+              >
+                <ChevronDownIcon className={`h-5 w-5 transition-transform ${actualExpandedId === it.id ? 'rotate-180' : ''}`} />
+              </button>
             </div>
           </div>
+
+          {actualExpandedId === it.id && (
+            <div className="pt-6 border-t border-neutral-200">
+              <ItineraryDetails itinerary={it} />
+            </div>
+          )}
         </div>
       ))}
 

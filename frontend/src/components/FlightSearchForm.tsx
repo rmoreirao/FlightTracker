@@ -16,10 +16,23 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
   const [tripType, setTripType] = useState<'roundtrip' | 'oneway'>('roundtrip');
   
   // Calculate default dates
-  const today = new Date();
-  const oneMonthFromNow = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-  const twoMonthsFromNow = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
-  
+    const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tenDaysFromNow = new Date(today);
+  tenDaysFromNow.setDate(today.getDate() + 10);
+
+  const twentyDaysFromNow = new Date(today);
+  twentyDaysFromNow.setDate(today.getDate() + 20);
+
+  const formatDateInput = (d: Date) => {
+    // Format as local YYYY-MM-DD without UTC shift issues
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const {
     register,
     handleSubmit,
@@ -32,8 +45,8 @@ export function FlightSearchForm({ onSearch, isLoading = false }: FlightSearchFo
     defaultValues: {
       originCode: 'AMS',
       destinationCode: 'GIG',
-      departureDate: oneMonthFromNow.toISOString().split('T')[0],
-      returnDate: twoMonthsFromNow.toISOString().split('T')[0],
+      departureDate: formatDateInput(tenDaysFromNow),
+      returnDate: formatDateInput(twentyDaysFromNow),
       adults: 1,
       children: 0,
       infants: 0,
