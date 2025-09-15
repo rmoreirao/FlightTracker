@@ -52,12 +52,12 @@ public class DatabaseOptions
     /// <summary>
     /// Max one-way itineraries per (route, day)
     /// </summary>
-    public int MaxOneWayPerRoutePerDay { get; set; } = 5;
+    public int MaxOneWayPerRoutePerDay { get; set; } = 100;
 
     /// <summary>
     /// Max round-trip itineraries per (route, departure day)
     /// </summary>
-    public int MaxRoundTripsPerRoutePerDay { get; set; } = 5;
+    public int MaxRoundTripsPerRoutePerDay { get; set; } = 100;
 
     /// <summary>
     /// Minimum days after outbound for return flight
