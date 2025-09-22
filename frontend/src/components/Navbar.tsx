@@ -1,23 +1,31 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const toggleMenu = () => setIsMenuOpen(prev => !prev);
 
   return (
     <nav className="sticky top-0 z-50 bg-neutral-50/80 dark:bg-neutral-50/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-900">
+          {/* Logo + Brand */}
+          <a href="/" className="flex items-center gap-2 flex-shrink-0">
+            <Image
+              src="/images/logos/logo.png"         // If you move it to /public/images use: /images/logo.png
+              alt="FlightTracker logo"
+              width={32}
+              height={32}
+              priority
+              className="h-9 w-9 object-contain rounded-md"
+            />
+            <span className="text-xl font-bold text-neutral-900 dark:text-neutral-900">
               FlightTracker
-            </h1>
-          </div>
+            </span>
+          </a>
 
           {/* Desktop Navigation */}
           <div className="hidden md:block">
@@ -47,19 +55,19 @@ export function Navbar() {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={toggleMenu}
-              className="text-neutral-700 dark:text-neutral-700 hover:text-primary-500 p-2 rounded-md transition-colors"
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? (
-                <XMarkIcon className="h-6 w-6" />
-              ) : (
-                <Bars3Icon className="h-6 w-6" />
-              )}
-            </button>
-          </div>
+            <div className="md:hidden">
+              <button
+                onClick={toggleMenu}
+                className="text-neutral-700 dark:text-neutral-700 hover:text-primary-500 p-2 rounded-md transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isMenuOpen ? (
+                  <XMarkIcon className="h-6 w-6" />
+                ) : (
+                  <Bars3Icon className="h-6 w-6" />
+                )}
+              </button>
+            </div>
         </div>
 
         {/* Mobile Navigation */}
